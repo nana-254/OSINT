@@ -3,43 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TACTICAL OSINT | v3.1.2 State Engine</title>
-    <!-- Elite Typography Stack -->
+    <meta name="description" content="Tactical OSINT Mission Control — Live diagnostics, TOR pipeline, AI orchestration, and OSINT telemetry dashboard.">
+    <title>TACTICAL OSINT | v4.0.0 Mission Control</title>
+    <!-- Elite Typography Stack: Inter (UI) + JetBrains Mono (Telemetry) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="styles-models-enhanced.css">
+    <link rel="stylesheet" href="styles-enhanced.css">
+    <!-- ═════════════════════════════════════════════
+         ENHANCED UI LIBRARIES
+         ═════════════════════════════════════════════ -->
+    <!-- D3.js for Intel Graph visualization -->
+    <script src="https://d3js.org/d3.v7.min.js" defer></script>
+    <!-- Chart.js for real-time metric charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js" defer></script>
+    <!-- Lightweight physics engine for Intel Graph -->
+    <script src="https://github.com/taye/interact.js/releases/download/v1.10.19/interact.min.js" defer></script>
 </head>
 <body class="tactical-theme">
-    <!-- SVG FILTERS FOR LIQUID GLASS -->
-    <svg style="display:none">
-        <filter id="liquid-refraction">
-            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-        
-        <!-- Circular Gauge Template -->
-        <symbol id="circular-gauge-symbol" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8" stroke-dasharray="283" stroke-dashoffset="283" stroke-linecap="round" />
-        </symbol>
+    <!-- ═══════════════════════════════════════════════════════
+         SVG DEFS: Liquid Glass + Gauge Gradient Definitions
+         ═══════════════════════════════════════════════════════ -->
+    <svg style="display:none" aria-hidden="true">
+        <defs>
+            <!-- Gauge ring gradients -->
+            <linearGradient id="grad-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#00F2FE"/>
+                <stop offset="100%" stop-color="#4FACFE"/>
+            </linearGradient>
+            <linearGradient id="grad-green" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#00F260"/>
+                <stop offset="100%" stop-color="#00FF87"/>
+            </linearGradient>
+            <linearGradient id="grad-amber" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#F7971E"/>
+                <stop offset="100%" stop-color="#FFD200"/>
+            </linearGradient>
+            <linearGradient id="grad-crimson" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#FF416C"/>
+                <stop offset="100%" stop-color="#FF4B2B"/>
+            </linearGradient>
+            <!-- Liquid glass refraction filter -->
+            <filter id="liquid-refraction">
+                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
     </svg>
 
     <div class="app-shell" id="app-shell">
-        <!-- [NAV SIDEBAR] Expanded Liquid Glass Rail -->
-        <nav class="sidebar liquid-glass" id="sidebar">
+        <!-- ═══════════════════════════════════════════════════════
+             LEFT NAV SIDEBAR — Liquid Glass Rail
+             ═══════════════════════════════════════════════════════ -->
+        <nav class="sidebar liquid-glass" id="sidebar" role="navigation" aria-label="Main navigation">
             <div class="sidebar-brand">
-                <div class="brand-logo">
+                <div class="brand-logo" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
                     </svg>
                 </div>
                 <span class="brand-name">TACTICAL OSINT</span>
             </div>
-            
-            <div class="nav-group">
-                <button class="nav-item active" data-target="diagnostics" title="System Diagnostics">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+
+            <div class="nav-group" role="list">
+                <button class="nav-item active" data-target="diagnostics"
+                        title="System Diagnostics" role="listitem"
+                        aria-current="page" id="nav-diagnostics">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <rect x="3" y="3" width="7" height="7"></rect>
                         <rect x="14" y="3" width="7" height="7"></rect>
                         <rect x="14" y="14" width="7" height="7"></rect>
@@ -47,23 +79,26 @@
                     </svg>
                     <span class="nav-label">DIAGNOSTICS</span>
                 </button>
-                <button class="nav-item" data-target="osint" title="OSINT Engine">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button class="nav-item" data-target="osint"
+                        title="OSINT Orchestration" role="listitem" id="nav-osint">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
                     <span class="nav-label">ORCHESTRATION</span>
                 </button>
-                <button class="nav-item" data-target="chat" title="Intelligence Hub">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button class="nav-item" data-target="chat"
+                        title="Intelligence Hub" role="listitem" id="nav-chat">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         <line x1="8" y1="9" x2="16" y2="9"></line>
                         <line x1="8" y1="13" x2="14" y2="13"></line>
                     </svg>
                     <span class="nav-label">INTEL HUB</span>
                 </button>
-                <button class="nav-item" data-target="models" title="Ollama Model Hub">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <button class="nav-item" data-target="models"
+                        title="Ollama Model Hub" role="listitem" id="nav-models">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
                         <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
                         <line x1="6" y1="6" x2="6.01" y2="6"></line>
@@ -71,8 +106,17 @@
                     </svg>
                     <span class="nav-label">OLLAMA MODELS</span>
                 </button>
-                <button class="nav-item" data-target="settings" title="System Settings">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <a class="nav-item" href="library.html"
+                        title="Library — Retrieved Files" role="listitem" id="nav-library">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                        <path d="M3 7h14v12H3z"></path>
+                        <path d="M7 7V5a2 2 0 0 1 2-2h8v14"></path>
+                    </svg>
+                    <span class="nav-label">LIBRARY</span>
+                </a>
+                <button class="nav-item" data-target="settings"
+                        title="System Settings" role="listitem" id="nav-settings">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
@@ -80,160 +124,765 @@
                 </button>
             </div>
 
+            <!-- Sidebar Footer: System Status -->
             <div class="sidebar-footer">
-                <div class="status-indicator online"></div>
+                <!-- Live Health Sparkline (above SYSTEM SECURE) -->
+                <div class="health-sparkline-wrap" id="health-sparkline-wrap" title="n8n webhook latency trend">
+                    <canvas id="health-sparkline" class="health-sparkline" width="200" height="24" aria-label="Webhook latency sparkline"></canvas>
+                </div>
+                <div class="status-indicator online" aria-label="System Online"></div>
                 <span class="status-text">SYSTEM SECURE</span>
             </div>
-            
+
+            <!-- Zen Mode Toggle -->
+            <div class="zen-mode-wrap">
+                <span class="zen-mode-label nav-label">ZEN MODE</span>
+                <label class="toggle-wrap" title="Toggle Zen Mode — hides sidebar and ticker">
+                    <input type="checkbox" id="zen-mode-toggle" onchange="toggleZenMode(this.checked)">
+                    <span class="toggle-track"></span>
+                </label>
+            </div>
+
             <!-- Sidebar Collapse Toggle -->
-            <button id="sidebar-toggle" class="sidebar-toggle-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Collapse sidebar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </button>
         </nav>
         
-        <!-- [CORE WORKSPACE] -->
-        <main class="workspace">
-            
-            <!-- VIEW 1: SYSTEM DIAGNOSTICS -->
-            <section id="view-diagnostics" class="view" data-active="true">
-                <header class="view-header">
-                    <div class="header-main">
-                        <span class="view-eyebrow">SYSTEM TELEMETRY</span>
-                        <h1>Diagnostics & Engine Control</h1>
+        <!-- ═══════════════════════════════════════════════════════
+             CORE WORKSPACE
+             ═══════════════════════════════════════════════════════ -->
+        <main class="workspace" id="main-workspace">
+
+<!-- ═══════════════════════════════════════════════════════
+         GLOBAL TICKER TAPE — PREDICTOR ENGINE STATE
+         Sticky at absolute top, spans full viewport width
+         ═══════════════════════════════════════════════════════ -->
+    <header class="ticker-tape" id="ticker-tape" role="banner" aria-label="Predictor Engine State">
+        <div class="ticker-prefix" aria-hidden="true">
+            <div class="ticker-prefix-dot"></div>
+            <span class="ticker-prefix-label">PREDICTOR ENGINE STATE</span>
+        </div>
+
+        <div class="ticker-scroll-area">
+            <div class="ticker-track" id="ticker-track">
+                <!-- Segment 1 (duplicated for seamless loop) -->
+                <div class="ticker-segment" aria-hidden="true">
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">SYSTEM</span>
+                        <span class="ticker-item-val ok" id="ticker-sys-status">NOMINAL</span>
                     </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">VRAM_LAYERS</span>
+                        <span class="ticker-item-val active" id="ticker-vram-layers">24 OFFLOADED</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">TOR_CIRCUIT</span>
+                        <span class="ticker-item-val ok">STABLE · 3 HOPS</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">OSINT_THREADS</span>
+                        <span class="ticker-item-val active" id="ticker-threads">+4 HEADROOM</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">GPU_TEMP</span>
+                        <span class="ticker-item-val warn" id="ticker-temp">48°C</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">THROUGHPUT</span>
+                        <span class="ticker-item-val active" id="ticker-throughput">4.8 MB/s</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">CIRCUIT_HEALTH</span>
+                        <span class="ticker-item-val ok" id="ticker-circuit">94%</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">LATENCY</span>
+                        <span class="ticker-item-val active" id="ticker-latency">18ms</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">VRAM_LOAD</span>
+                        <span class="ticker-item-val warn" id="ticker-vram">85%</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">N8N_ENGINE</span>
+                        <span class="ticker-item-val ok">ONLINE</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                </div>
+                <!-- Segment 2 (duplicate for infinite loop) -->
+                <div class="ticker-segment" aria-hidden="true">
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">SYSTEM</span>
+                        <span class="ticker-item-val ok">NOMINAL</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">VRAM_LAYERS</span>
+                        <span class="ticker-item-val active">24 OFFLOADED</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">TOR_CIRCUIT</span>
+                        <span class="ticker-item-val ok">STABLE · 3 HOPS</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">OSINT_THREADS</span>
+                        <span class="ticker-item-val active">+4 HEADROOM</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">GPU_TEMP</span>
+                        <span class="ticker-item-val warn">48°C</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">THROUGHPUT</span>
+                        <span class="ticker-item-val active">4.8 MB/s</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">CIRCUIT_HEALTH</span>
+                        <span class="ticker-item-val ok">94%</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">LATENCY</span>
+                        <span class="ticker-item-val active">18ms</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">VRAM_LOAD</span>
+                        <span class="ticker-item-val warn">85%</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                    <div class="ticker-item">
+                        <span class="ticker-item-label">N8N_ENGINE</span>
+                        <span class="ticker-item-val ok">ONLINE</span>
+                    </div>
+                    <span class="ticker-divider">|</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Stop — far right of ticker tape -->
+        <button class="emergency-stop-btn" id="emergency-stop-btn"
+                title="Emergency Stop: Halt all OSINT operations"
+                aria-label="Emergency Stop"
+                onclick="emergencyStop()">
+            <div class="emergency-stop-icon" aria-hidden="true"></div>
+            <span class="emergency-stop-label">EMERGENCY STOP</span>
+        </button>
+    </header>
+
+            <!-- ══════════════════════════════════
+                 VIEW 1: SYSTEM DIAGNOSTICS
+                 Bento Grid: 4-col · 3-row
+                 ══════════════════════════════════ -->
+            <section id="view-diagnostics" class="view" data-active="true"
+                     aria-label="System Diagnostics &amp; Engine Control">
+
+                <!-- Breadcrumb bar -->
+                <div class="breadcrumb-bar">
+                    <nav class="breadcrumb-trail" aria-label="Breadcrumb">
+                        <span>DASHBOARD</span>
+                        <span class="crumb-sep">›</span>
+                        <span>CORE ENGINE</span>
+                        <span class="crumb-sep">›</span>
+                        <span class="crumb-active">LIVE DIAGNOSTICS</span>
+                    </nav>
                     <div class="header-stats">
                         <div class="mini-stat">
                             <span class="stat-label">UPTIME</span>
-                            <span class="stat-value">142:08:12</span>
+                            <span class="stat-value" id="sys-uptime">--:--:--</span>
                         </div>
                         <div class="mini-stat">
                             <span class="stat-label">LOAD</span>
-                            <span class="stat-value">0.42</span>
-                        </div>
-                    </div>
-                </header>
-                
-                <div class="diagnostics-grid">
-                    <!-- Circular Gauges Panel -->
-                    <div class="tactical-card liquid-glass" id="card-telemetry">
-                        <div class="card-inner">
-                            <div class="card-head">
-                                <span class="card-title">Core Resource Distribution</span>
-                                <span class="card-id">CRD_01</span>
-                            </div>
-                            <div class="gauge-cluster">
-                                <div class="gauge-item">
-                                    <div class="gauge-visual">
-                                        <svg class="circular-gauge" viewBox="0 0 100 100" id="vram-gauge">
-                                            <circle class="gauge-track" cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-                                            <circle class="gauge-ring" cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
-                                        </svg>
-                                        <span id="vram-value" class="gauge-label">64%</span>
-                                    </div>
-                                    <span class="gauge-name">VRAM</span>
-                                </div>
-                                <div class="gauge-item">
-                                    <div class="gauge-visual">
-                                        <svg class="circular-gauge" viewBox="0 0 100 100" id="ram-gauge">
-                                            <circle class="gauge-track" cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-                                            <circle class="gauge-ring" cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
-                                        </svg>
-                                        <span id="ram-value" class="gauge-label">42%</span>
-                                    </div>
-                                    <span class="gauge-name">RAM</span>
-                                </div>
-                                <div class="gauge-item">
-                                    <div class="gauge-visual">
-                                        <svg class="circular-gauge" viewBox="0 0 100 100" id="temp-gauge">
-                                            <circle class="gauge-track" cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-                                            <circle class="gauge-ring" cx="50" cy="50" r="42" fill="none" stroke="var(--clr-warning)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
-                                        </svg>
-                                        <span id="temp-value" class="gauge-label">48°C</span>
-                                    </div>
-                                    <span class="gauge-name">TEMP</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Network Pulse Panel -->
-                    <div class="tactical-card liquid-glass" id="card-network">
-                        <div class="card-inner">
-                            <div class="card-head">
-                                <span class="card-title">Tor Pipeline Exchange</span>
-                                <span class="card-id">NET_SEC</span>
-                            </div>
-                            <div class="network-viz">
-                                <div class="nodes-row">
-                                    <div class="node-pip secure" title="Entry Node: DE"></div>
-                                    <div class="node-line active"></div>
-                                    <div class="node-pip secure" title="Middle Node: NL"></div>
-                                    <div class="node-line active"></div>
-                                    <div class="node-pip secure" title="Exit Node: IS"></div>
-                                </div>
-                                <div class="pulse-sparkline" id="network-pulse">
-                                    <!-- Dynamic sparkline SVG will be injected here -->
-                                </div>
-                            </div>
-                            <div class="readout-meta">
-                                <span>Throughput: 1.2 MB/s</span>
-                                <span>Latency: 42ms</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- System Synthesis Panel -->
-                    <div class="tactical-card liquid-glass prediction-panel">
-                        <div class="card-inner">
-                            <div class="card-head">
-                                <span class="card-title">Predictive Engine State</span>
-                                <span class="card-id">AI_SYNS</span>
-                            </div>
-                            <div class="synthesis-content">
-                                <p class="synthesis-text">
-                                    <span class="typing-cursor">❯</span> System under nominal load. 24 VRAM layers offloaded. 
-                                    Tor circuit stable via 3 hops. Predictive analysis suggests 
-                                    resource headroom for 4 additional OSINT threads.
-                                </p>
-                            </div>
-                            <div class="action-row">
-                                <button class="tactical-btn sm">OPTIMIZE CACHE</button>
-                                <button class="tactical-btn sm warning">FLUSH PROXIES</button>
-                            </div>
+                            <span class="stat-value" id="sys-load">--.--</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Collapsible Terminal -->
-                <div class="terminal-deck liquid-glass" id="main-terminal">
-                    <div class="deck-header">
-                        <div class="deck-title">
-                            <svg class="deck-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="4 17 10 11 4 5"></polyline>
-                                <line x1="12" y1="19" x2="20" y2="19"></line>
-                            </svg>
-                            <span>CORE_LOG_STREAM_v3.2.0</span>
+                <!-- ════ BENTO GRID ════
+                     Row 1: Telemetry gauges × 4
+                     Row 2: TOR Pipeline (full-width span)
+                     Row 3: Log Stream (full-width span)
+                -->
+                <div class="bento-grid">
+
+                    <!-- ── BENTO CELL 1: VRAM ── -->
+                    <article class="bento-card cyan-accent bento-cell-vram gauge-interactive"
+                             aria-label="VRAM Usage" id="card-vram">
+                        <!-- Hover tooltip -->
+                        <div class="gauge-tooltip" id="vram-tooltip" role="tooltip">
+                            <div class="gauge-tooltip-title">GPU VRAM</div>
+                            <div class="gauge-tooltip-row"><span>Allocated</span><span id="tt-vram-alloc">43.57 GB</span></div>
+                            <div class="gauge-tooltip-row"><span>Free</span><span id="tt-vram-free">14.43 GB</span></div>
+                            <div class="gauge-tooltip-row"><span>Model Layers</span><span id="tt-vram-layers">24 offloaded</span></div>
+                            <div class="gauge-tooltip-row"><span>Peak</span><span id="tt-vram-peak">89%</span></div>
                         </div>
-                        <div class="deck-actions">
-                            <button id="terminal-collapse-btn" class="icon-btn">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                            </button>
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>VRAM</span>
+                                <span class="bento-label-id">GPU_MEM</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap" id="vram-ring-wrap">
+                                    <!-- Glow halo layer (animated) -->
+                                    <div class="gauge-glow-halo" id="vram-halo"></div>
+                                    <!-- Canvas wave animation layer -->
+                                    <canvas id="vram-wave-canvas" class="gauge-wave-canvas" aria-hidden="true"></canvas>
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <!-- Track -->
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.04)" stroke-width="9"/>
+                                        <!-- Fill ring -->
+                                        <circle id="vram-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-cyan" stroke-width="9"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="66"
+                                                transform="rotate(-90 50 50)"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="vram-value">75%</span>
+                                        <span class="gauge-sub-label">VRAM</span>
+                                    </div>
+                                </div>
+                                <!-- Embedded sparkline canvas -->
+                                <canvas class="gauge-sparkline-canvas" id="vram-sparkline"
+                                        width="160" height="36" aria-hidden="true"></canvas>
+                                <div class="gauge-mini-stats">
+                                    <span class="stat-pair"><span class="stat-k">ALLOC</span><span class="stat-v" id="vram-alloc">43.57 GB</span></span>
+                                    <span class="stat-pair"><span class="stat-k">FREE</span><span class="stat-v" id="vram-free">14.43 GB</span></span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div id="console-output" class="terminal-body">
-                        <div class="log-entry">
-                            <span class="log-ts">[10:42:01]</span>
-                            <span class="log-msg">Kernel initialized. Loading llama3.1:8b-abliterated...</span>
-                            <span class="log-tag success">OK</span>
+                    </article>
+
+                    <!-- ── BENTO CELL 2: CPU ── -->
+                    <article class="bento-card green-accent bento-cell-cpu gauge-interactive"
+                             aria-label="CPU Usage" id="card-cpu">
+                        <div class="gauge-tooltip" id="cpu-tooltip" role="tooltip">
+                            <div class="gauge-tooltip-title">CPU CORES</div>
+                            <div class="gauge-tooltip-row"><span>Active Threads</span><span id="tt-cpu-threads">16 / 16</span></div>
+                            <div class="gauge-tooltip-row"><span>Freq</span><span id="tt-cpu-freq">3.8 GHz</span></div>
+                            <div class="gauge-tooltip-row"><span>Load Avg</span><span id="tt-cpu-load">0.42</span></div>
+                            <div class="gauge-tooltip-row"><span>Context Sw</span><span id="tt-cpu-ctx">4,821/s</span></div>
                         </div>
-                        <div class="prompt-line">
-                            <span class="prompt-symbol">❯</span>
-                            <span class="cursor"></span>
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>CPU</span>
+                                <span class="bento-label-id">CORES</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap" id="cpu-ring-wrap">
+                                    <div class="gauge-glow-halo" id="cpu-halo"></div>
+                                    <!-- Canvas wave animation layer -->
+                                    <canvas id="cpu-wave-canvas" class="gauge-wave-canvas" aria-hidden="true"></canvas>
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.04)" stroke-width="9"/>
+                                        <circle id="cpu-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-green" stroke-width="9"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="132"
+                                                transform="rotate(-90 50 50)"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="cpu-value">50%</span>
+                                        <span class="gauge-sub-label">CPU</span>
+                                    </div>
+                                </div>
+                                <canvas class="gauge-sparkline-canvas" id="cpu-sparkline"
+                                        width="160" height="36" aria-hidden="true"></canvas>
+                                <div class="gauge-mini-stats">
+                                    <span class="stat-pair"><span class="stat-k">THREADS</span><span class="stat-v" id="cpu-threads">16 ACTIVE</span></span>
+                                    <span class="stat-pair"><span class="stat-k">FREQ</span><span class="stat-v" id="cpu-freq">3.8 GHz</span></span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </article>
+
+                    <!-- ── BENTO CELL 3: RAM ── -->
+                    <article class="bento-card cyan-accent bento-cell-ram gauge-interactive"
+                             aria-label="RAM Usage" id="card-ram">
+                        <div class="gauge-tooltip" id="ram-tooltip" role="tooltip">
+                            <div class="gauge-tooltip-title">SYSTEM RAM</div>
+                            <div class="gauge-tooltip-row"><span>Used</span><span id="tt-ram-used">25.6 GB</span></div>
+                            <div class="gauge-tooltip-row"><span>Free</span><span id="tt-ram-free">38.4 GB</span></div>
+                            <div class="gauge-tooltip-row"><span>Cache</span><span id="tt-ram-cache">12.1 GB</span></div>
+                            <div class="gauge-tooltip-row"><span>Swap</span><span id="tt-ram-swap">0.0 GB</span></div>
+                        </div>
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>RAM</span>
+                                <span class="bento-label-id">SYS_MEM</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap" id="ram-ring-wrap">
+                                    <div class="gauge-glow-halo" id="ram-halo"></div>
+                                    <!-- Canvas wave animation layer -->
+                                    <canvas id="ram-wave-canvas" class="gauge-wave-canvas" aria-hidden="true"></canvas>
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.04)" stroke-width="9"/>
+                                        <circle id="ram-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-cyan" stroke-width="9"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="158"
+                                                transform="rotate(-90 50 50)"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="ram-value">40%</span>
+                                        <span class="gauge-sub-label">RAM</span>
+                                    </div>
+                                </div>
+                                <canvas class="gauge-sparkline-canvas" id="ram-sparkline"
+                                        width="160" height="36" aria-hidden="true"></canvas>
+                                <div class="gauge-mini-stats">
+                                    <span class="stat-pair"><span class="stat-k">USED</span><span class="stat-v" id="ram-used">25.6 GB</span></span>
+                                    <span class="stat-pair"><span class="stat-k">FREE</span><span class="stat-v" id="ram-free">38.4 GB</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- ── BENTO CELL 4: TEMP ── -->
+                    <article class="bento-card amber-accent bento-cell-temp gauge-interactive"
+                             aria-label="GPU Temperature" id="card-temp">
+                        <div class="gauge-tooltip" id="temp-tooltip" role="tooltip">
+                            <div class="gauge-tooltip-title">GPU THERMAL</div>
+                            <div class="gauge-tooltip-row"><span>Current</span><span id="tt-temp-cur">48°C</span></div>
+                            <div class="gauge-tooltip-row"><span>Threshold</span><span id="tt-temp-thresh">85°C</span></div>
+                            <div class="gauge-tooltip-row"><span>Fan Speed</span><span id="tt-temp-fan">62%</span></div>
+                            <div class="gauge-tooltip-row"><span>TDP</span><span id="tt-temp-tdp">285W</span></div>
+                        </div>
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>TEMP</span>
+                                <span class="bento-label-id">GPU_THERM</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap" id="temp-ring-wrap">
+                                    <div class="gauge-glow-halo" id="temp-halo"></div>
+                                    <!-- Canvas wave animation layer -->
+                                    <canvas id="temp-wave-canvas" class="gauge-wave-canvas" aria-hidden="true"></canvas>
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.04)" stroke-width="9"/>
+                                        <circle id="temp-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-amber" stroke-width="9"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="110"
+                                                transform="rotate(-90 50 50)"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="temp-value">48°C</span>
+                                        <span class="gauge-sub-label" id="temp-state-label">NOMINAL</span>
+                                    </div>
+                                </div>
+                                <canvas class="gauge-sparkline-canvas" id="temp-sparkline"
+                                        width="160" height="36" aria-hidden="true"></canvas>
+                                <div class="gauge-mini-stats">
+                                    <span class="stat-pair"><span class="stat-k">FAN</span><span class="stat-v" id="temp-fan">62%</span></span>
+                                    <span class="stat-pair"><span class="stat-k">TDP</span><span class="stat-v" id="temp-tdp">285W</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>VRAM</span>
+                                <span class="bento-label-id">GPU_MEM</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap">
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <!-- Track -->
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+                                        <!-- Fill ring -->
+                                        <circle id="vram-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-cyan" stroke-width="8"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="66"
+                                                transform="rotate(-90 50 50)"
+                                                style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="vram-value">75%</span>
+                                        <span class="gauge-sub-label">VRAM</span>
+                                    </div>
+                                </div>
+                                <!-- Sparkline placeholder -->
+                                <svg class="gauge-sparkline" id="vram-sparkline" aria-hidden="true"></svg>
+                                <div class="gauge-mini-stats">
+                                    <span>Blue: &lt;40°C</span>
+                                    <span class="gauge-mini-val" id="vram-alloc">43.57 GB</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- ── BENTO CELL 2: CPU ── -->
+                    <article class="bento-card green-accent bento-cell-cpu"
+                             aria-label="CPU Usage" id="card-cpu">
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>CPU</span>
+                                <span class="bento-label-id">CORES</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap">
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+                                        <circle id="cpu-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-green" stroke-width="8"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="132"
+                                                transform="rotate(-90 50 50)"
+                                                style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="cpu-value">50%</span>
+                                        <span class="gauge-sub-label">CPU</span>
+                                    </div>
+                                </div>
+                                <svg class="gauge-sparkline" id="cpu-sparkline" aria-hidden="true"></svg>
+                                <div class="gauge-mini-stats">
+                                    <span>THREADS</span>
+                                    <span class="gauge-mini-val" id="cpu-threads">16 ACTIVE</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- ── BENTO CELL 3: RAM ── -->
+                    <article class="bento-card cyan-accent bento-cell-ram"
+                             aria-label="RAM Usage" id="card-ram">
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>RAM</span>
+                                <span class="bento-label-id">SYS_MEM</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap">
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+                                        <circle id="ram-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-cyan" stroke-width="8"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="158"
+                                                transform="rotate(-90 50 50)"
+                                                style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="ram-value">40%</span>
+                                        <span class="gauge-sub-label">RAM</span>
+                                    </div>
+                                </div>
+                                <svg class="gauge-sparkline" id="ram-sparkline" aria-hidden="true"></svg>
+                                <div class="gauge-mini-stats">
+                                    <span>Yellow: 65°C</span>
+                                    <span class="gauge-mini-val" id="ram-used">25.6 GB</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- ── BENTO CELL 4: TEMP ── -->
+                    <article class="bento-card amber-accent bento-cell-temp"
+                             aria-label="GPU Temperature" id="card-temp">
+                        <div class="bento-card-inner">
+                            <div class="bento-label">
+                                <span>TEMP</span>
+                                <span class="bento-label-id">GPU_THERM</span>
+                            </div>
+                            <div class="gauge-card-content">
+                                <div class="gauge-ring-wrap">
+                                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                                        <circle cx="50" cy="50" r="42" fill="none"
+                                                stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+                                        <circle id="temp-ring" cx="50" cy="50" r="42" fill="none"
+                                                class="ring-amber" stroke-width="8"
+                                                stroke-linecap="round"
+                                                stroke-dasharray="264"
+                                                stroke-dashoffset="110"
+                                                transform="rotate(-90 50 50)"
+                                                style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1);"/>
+                                    </svg>
+                                    <div class="gauge-ring-center">
+                                        <span class="gauge-main-val" id="temp-value">48°C</span>
+                                        <span class="gauge-sub-label">TEMP</span>
+                                    </div>
+                                </div>
+                                <svg class="gauge-sparkline" id="temp-sparkline" aria-hidden="true"></svg>
+                                <div class="gauge-mini-stats">
+                                    <span>Red: &gt;75°C</span>
+                                    <span class="gauge-mini-val warn" id="temp-status">PULSING</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- ── BENTO CELL 5: TOR PIPELINE (spans all 4 cols) ── -->
+                    <article class="bento-card bento-cell-tor"
+                             aria-label="TOR Pipeline Exchange" id="card-tor">
+                        <div class="bento-card-inner tor-card-inner">
+                            <div class="bento-label">
+                                <span>TOR PIPELINE EXCHANGE</span>
+                                <div class="tor-status-badge" id="tor-status-badge">
+                                    <span class="tor-status-dot"></span>
+                                    <span id="tor-status-text">CIRCUIT ACTIVE</span>
+                                </div>
+                            </div>
+
+                            <!-- 3-node pipeline visualization -->
+                            <div class="tor-pipeline-track">
+                                <!-- SOURCE -->
+                                <div class="tor-node-wrap">
+                                    <div class="tor-node-shell source" id="tor-node-src" title="Source: This Machine">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                            <path d="M8 21h8M12 17v4"/>
+                                        </svg>
+                                    </div>
+                                    <span class="tor-node-label">SOURCE</span>
+                                    <span class="tor-node-sublabel">LOCAL</span>
+                                </div>
+
+                                <!-- Connector A -->
+                                <div class="tor-wire" id="tor-wire-a">
+                                    <div class="tor-wire-track">
+                                        <div class="tor-packet" id="tor-pkt-a1"></div>
+                                        <div class="tor-packet" id="tor-pkt-a2" style="animation-delay:-1.3s"></div>
+                                    </div>
+                                    <div class="tor-wire-label">AES-256</div>
+                                </div>
+
+                                <!-- ENTRY NODE -->
+                                <div class="tor-node-wrap">
+                                    <div class="tor-node-shell entry" id="tor-node-entry" title="Entry Guard: DE-Frankfurt">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="tor-node-label">ENTRY</span>
+                                    <span class="tor-node-sublabel" id="tor-entry-cc">DE · GRD</span>
+                                </div>
+
+                                <!-- Connector B -->
+                                <div class="tor-wire" id="tor-wire-b">
+                                    <div class="tor-wire-track">
+                                        <div class="tor-packet" id="tor-pkt-b1" style="animation-delay:-0.6s"></div>
+                                        <div class="tor-packet" id="tor-pkt-b2" style="animation-delay:-1.9s"></div>
+                                    </div>
+                                    <div class="tor-wire-label">RELAY</div>
+                                </div>
+
+                                <!-- RELAY NODE -->
+                                <div class="tor-node-wrap">
+                                    <div class="tor-node-shell relay" id="tor-node-relay" title="Middle Relay: NL-Amsterdam">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                                            <path d="M2 12h20"/>
+                                        </svg>
+                                    </div>
+                                    <span class="tor-node-label">RELAY</span>
+                                    <span class="tor-node-sublabel" id="tor-relay-cc">NL · MID</span>
+                                </div>
+
+                                <!-- Connector C -->
+                                <div class="tor-wire" id="tor-wire-c">
+                                    <div class="tor-wire-track">
+                                        <div class="tor-packet" id="tor-pkt-c1" style="animation-delay:-0.9s"></div>
+                                        <div class="tor-packet" id="tor-pkt-c2" style="animation-delay:-2.2s"></div>
+                                    </div>
+                                    <div class="tor-wire-label">ONION</div>
+                                </div>
+
+                                <!-- EXIT NODE -->
+                                <div class="tor-node-wrap">
+                                    <div class="tor-node-shell exit" id="tor-node-exit" title="Exit Node: IS-Reykjavik">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                            <polyline points="16 17 21 12 16 7"/>
+                                            <line x1="21" y1="12" x2="9" y2="12"/>
+                                        </svg>
+                                    </div>
+                                    <span class="tor-node-label">EXIT</span>
+                                    <span class="tor-node-sublabel" id="tor-exit-cc">IS · EXT</span>
+                                </div>
+                            </div>
+
+                            <!-- Metrics footer: LCD-style readout boxes -->
+                            <div class="tor-metrics-row">
+                                <div class="tor-metric">
+                                    <span class="tor-metric-label">THROUGHPUT</span>
+                                    <span class="tor-metric-val lcd" id="tor-throughput">4.8 MB/s</span>
+                                    <canvas class="tor-metric-spark" id="tor-throughput-spark"
+                                            width="120" height="22" aria-hidden="true"></canvas>
+                                </div>
+                                <div class="tor-metric">
+                                    <span class="tor-metric-label">LATENCY</span>
+                                    <span class="tor-metric-val lcd amber" id="tor-latency">18 ms</span>
+                                    <canvas class="tor-metric-spark" id="tor-latency-spark"
+                                            width="120" height="22" aria-hidden="true"></canvas>
+                                </div>
+                                <div class="tor-metric">
+                                    <span class="tor-metric-label">CIRCUIT HEALTH</span>
+                                    <span class="tor-metric-val lcd" id="tor-health">94%</span>
+                                    <canvas class="tor-metric-spark" id="tor-health-spark"
+                                            width="120" height="22" aria-hidden="true"></canvas>
+                                </div>
+                                <div class="tor-metric">
+                                    <span class="tor-metric-label">DATA SENT</span>
+                                    <span class="tor-metric-val lcd" id="tor-data-sent">2.41 GB</span>
+                                    <canvas class="tor-metric-spark" id="tor-data-spark"
+                                            width="120" height="22" aria-hidden="true"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <!-- ── BENTO CELL 6: LOG STREAM (spans all 4 cols) ── -->
+                    <article class="bento-card bento-cell-log log-stream-card"
+                             aria-label="Core Log Stream" id="card-log">
+
+                        <!-- ═ TOP UTILITY BAR ═ -->
+                        <div class="log-utility-bar" id="log-utility-bar">
+
+                            <!-- Left: title + live indicator -->
+                            <div class="log-bar-left">
+                                <div class="log-live-dot" id="log-live-dot" title="Live stream active"></div>
+                                <span class="log-bar-title">CORE_LOG_STREAM</span>
+                                <span class="log-bar-version">v4.0.0</span>
+                            </div>
+
+                            <!-- Center: search -->
+                            <div class="log-search-wrap" id="log-search-wrap">
+                                <svg class="log-search-icon" width="11" height="11" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <input type="search"
+                                       id="log-search-input"
+                                       class="log-search-input"
+                                       placeholder="Search or /regex/…"
+                                       spellcheck="false"
+                                       autocomplete="off"
+                                       aria-label="Search log stream">
+                                <button class="log-regex-toggle" id="log-regex-toggle"
+                                        title="Toggle regex mode" aria-pressed="false">.*</button>
+                                <button class="log-search-clear" id="log-search-clear"
+                                        aria-label="Clear search" title="Clear" style="display: none;">×</button>
+                            </div>
+
+                            <!-- Right: chips + controls -->
+                            <div class="log-bar-right">
+                                <!-- Filter chips -->
+                                <div class="log-chips" role="group" aria-label="Log filter">
+                                    <button class="log-chip active" data-filter="all"
+                                            id="log-filter-all" aria-pressed="true">[ALL]</button>
+                                    <button class="log-chip" data-filter="ml"
+                                            id="log-filter-ml" aria-pressed="false">[ML Refiner]</button>
+                                    <button class="log-chip" data-filter="scraper"
+                                            id="log-filter-scraper" aria-pressed="false">[Scraper]</button>
+                                    <button class="log-chip log-chip-err" data-filter="error"
+                                            id="log-filter-errors" aria-pressed="false">[Errors]</button>
+                                </div>
+
+                                <div class="log-bar-sep"></div>
+
+                                <!-- Pause / Play -->
+                                <button class="log-ctrl-btn" id="log-pause-btn"
+                                        title="Pause log stream" aria-label="Pause" aria-pressed="false">
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+                                        <rect x="1" y="1" width="3" height="8" rx="0.5"/>
+                                        <rect x="6" y="1" width="3" height="8" rx="0.5"/>
+                                    </svg>
+                                </button>
+
+                                <!-- Autoscroll toggle -->
+                                <label class="log-autoscroll-label" title="Auto-scroll to newest log">
+                                    <input type="checkbox" id="log-autoscroll" checked
+                                           aria-label="Auto-scroll to bottom">
+                                    <span class="log-autoscroll-track"></span>
+                                    <span class="log-autoscroll-text">SCROLL</span>
+                                </label>
+
+                                <!-- Clear -->
+                                <button class="log-ctrl-btn log-clear-btn" id="log-clear-btn"
+                                        title="Clear log" aria-label="Clear log">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6l-1 14H6L5 6"/>
+                                        <path d="M10 11v6M14 11v6"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ═ LOG BODY: CRT scanline + entries ═ -->
+                        <div class="log-body crt-scanline" id="console-output"
+                             role="log" aria-live="polite" aria-atomic="false"
+                             data-autoscroll="true" data-paused="false">
+
+                            <!-- Seed entries — will be cleared by JS on init if needed -->
+                            <div class="log-line" data-source="system">
+                                <span class="ll-ln">001</span>
+                                <span class="ll-ts">11:12:01</span>
+                                <span class="ll-src">[KERNEL]</span>
+                                <span class="ll-msg">Booting TACTICAL OSINT v4.0.0 — loading runtime environment…</span>
+                                <span class="ll-badge ok">BOOT</span>
+                            </div>
+                        </div>
+
+                        <!-- ═ PROMPT LINE: pinned to bottom ═ -->
+                        <div class="log-prompt-row" id="log-prompt-row">
+                            <span class="log-prompt-sym" aria-hidden="true">❯</span>
+                            <span class="log-prompt-path">osint@tactical:~$</span>
+                            <span class="log-caret" id="log-caret" aria-label="cursor">▮</span>
+                        </div>
+
+                        <!-- ═ STATUS BAR ═ -->
+                        <div class="log-status-bar" aria-hidden="true">
+                            <span class="lsb-item" id="lsb-count">1 LINES</span>
+                            <span class="lsb-sep"></span>
+                            <span class="lsb-item" id="lsb-filter">FILTER: ALL</span>
+                            <span class="lsb-sep"></span>
+                            <span class="lsb-item lsb-stream" id="lsb-stream">&#9679; STREAMING</span>
+                            <span class="lsb-spacer"></span>
+                            <span class="lsb-item" id="lsb-matched"></span>
+                        </div>
+
+                    </article>
+
+                </div><!-- /.bento-grid -->
             </section>
             
             <!-- VIEW 2: OSINT ORCHESTRATION -->
@@ -245,86 +894,152 @@
                     </div>
                 </header>
                 
-                <div class="osint-dashboard-grid">
-                    <!-- Multi-Bot Fleet Grid -->
-                    <div class="bot-fleet-panel liquid-glass">
-                        <div class="panel-header">
-                            <span>ACTIVE BOT FLEET</span>
-                            <span class="panel-count">04 UNITS</span>
-                        </div>
-                        <div class="bot-grid" id="bot-fleet-grid">
-                            <div class="bot-card active">
-                                <div class="bot-icon scraper"></div>
-                                <div class="bot-info">
-                                    <span class="bot-name">SC-LEAK-01</span>
-                                    <span class="bot-status">SCRAPING_TOR</span>
-                                </div>
-                                <div class="bot-load-mini">
-                                    <div class="load-bar" style="width: 72%"></div>
-                                </div>
+                <div class="osint-bento-layout">
+                    <!-- Left Column: M3 Judge Auditing Block -->
+                    <div class="bento-card judge-deck">
+                        <div class="bento-card-inner">
+                            <div class="panel-header">
+                                <span>M3 SKEPTICAL JUDGE | EVIDENCE AUDIT</span>
                             </div>
-                            <div class="bot-card idle">
-                                <div class="bot-icon analyzer"></div>
-                                <div class="bot-info">
-                                    <span class="bot-name">NLP-CORE-A</span>
-                                    <span class="bot-status">STANDBY</span>
-                                </div>
-                            </div>
-                            <div class="bot-card warning">
-                                <div class="bot-icon image"></div>
-                                <div class="bot-info">
-                                    <span class="bot-name">IMG-FRNSC</span>
-                                    <span class="bot-status">RATE_LIMITED</span>
-                                </div>
-                            </div>
-                            <div class="bot-card active">
-                                <div class="bot-icon judge"></div>
-                                <div class="bot-info">
-                                    <span class="bot-name">M3-JUDGE</span>
-                                    <span class="bot-status">AUDITING</span>
-                                </div>
+                            <div class="judge-table-container">
+                                <table class="judge-table">
+                                    <thead>
+                                        <tr>
+                                            <th>STATUS</th>
+                                            <th>CLAIM UNDER ANALYSIS</th>
+                                            <th>VERIFICATION METRIC</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div class="status-pill pill-success">PASSED</div>
+                                                <div class="status-sub">High blur</div>
+                                            </td>
+                                            <td class="claim-text">Target registration records match 2022 dataset core signature.</td>
+                                            <td>
+                                                <div class="metric-val">{"PASSED"}</div>
+                                                <div class="metric-score">Score: 96%</div>
+                                                <div class="metric-logic">Verified local DB match</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="status-pill pill-success">PASSED</div>
+                                                <div class="status-sub">High blur</div>
+                                            </td>
+                                            <td class="claim-text">Financial routing tracks through shell corp #4092.</td>
+                                            <td>
+                                                <div class="metric-val">{"BAFCER", "n8n_node_ndbe_shares"}</div>
+                                                <div class="metric-score">Score: 95%</div>
+                                                <div class="metric-logic">Verified local DB match</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="status-pill pill-fail">FAILED</div>
+                                                <div class="status-sub">Soft glow</div>
+                                            </td>
+                                            <td class="claim-text">IP origin confirmed as domestic residential.</td>
+                                            <td>
+                                                <div class="metric-val">{"jSOnuom_2022"}</div>
+                                                <div class="metric-score">Score: 50%</div>
+                                                <div class="metric-logic">Hallucination detected</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="status-pill pill-fail">FAILED</div>
+                                                <div class="status-sub">Soft glow</div>
+                                            </td>
+                                            <td class="claim-text">Metadata timestamp aligns with primary event window.</td>
+                                            <td>
+                                                <div class="metric-val">{"PA33ED"}</div>
+                                                <div class="metric-score">Score: 30%</div>
+                                                <div class="metric-logic">Mismatch in timezone offset</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="status-pill pill-success">PASSED</div>
+                                                <div class="status-sub">High blur</div>
+                                            </td>
+                                            <td class="claim-text">Cross-referenced identity matches known alias.</td>
+                                            <td>
+                                                <div class="metric-val">{"PASSED"}</div>
+                                                <div class="metric-score">Score: 92%</div>
+                                                <div class="metric-logic">Verified local DB match</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="status-pill pill-success">PASSED</div>
+                                                <div class="status-sub">High blur</div>
+                                            </td>
+                                            <td class="claim-text">Crypto wallet transactions trace back to mixing service.</td>
+                                            <td>
+                                                <div class="metric-val">{"MIX_SVC_MATCH"}</div>
+                                                <div class="metric-score">Score: 88%</div>
+                                                <div class="metric-logic">Blockchain heuristics matched</div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Visual Provenance Map -->
-                    <div class="provenance-panel liquid-glass">
-                        <div class="panel-header">
-                            <span>INTEL PROVENANCE LINEAGE</span>
-                            <span class="status-chip secure">VERIFIED</span>
-                        </div>
-                        <div class="provenance-viz" id="provenance-map">
-                            <!-- SVG Flow Map Placeholder -->
-                            <div class="flow-placeholder">
-                                <div class="flow-node">SOURCE</div>
-                                <div class="flow-arrow">❯</div>
-                                <div class="flow-node active">BOT</div>
-                                <div class="flow-arrow">❯</div>
-                                <div class="flow-node">DOSSIER</div>
+                    <!-- Right Column -->
+                    <div class="osint-right-col">
+                        <!-- Top: Command Network Tree -->
+                        <div class="bento-card provenance-panel">
+                            <div class="bento-card-inner">
+                                <div class="panel-header">
+                                    <span>COMMAND NETWORK TREE</span>
+                                    <span class="status-chip secure">VERIFIED</span>
+                                </div>
+                                <div class="provenance-viz" id="provenance-map">
+                                    <div class="network-tree-layout">
+                                        <div class="nt-node source">
+                                            <div class="nt-dot"></div>
+                                            <div class="nt-label">SOURCE</div>
+                                        </div>
+                                        <div class="nt-connector">
+                                            <div class="nt-packet" style="animation-delay: 0s;"></div>
+                                        </div>
+                                        <div class="nt-node bot">
+                                            <div class="nt-dot active"></div>
+                                            <div class="nt-label">BOT</div>
+                                        </div>
+                                        <div class="nt-connector">
+                                            <div class="nt-packet" style="animation-delay: 0.5s;"></div>
+                                        </div>
+                                        <div class="nt-node judge">
+                                            <div class="nt-dot"></div>
+                                            <div class="nt-label">JUDGE</div>
+                                        </div>
+                                        <div class="nt-connector">
+                                            <div class="nt-packet" style="animation-delay: 1.0s;"></div>
+                                        </div>
+                                        <div class="nt-node dossier">
+                                            <div class="nt-dot"></div>
+                                            <div class="nt-label">DOSSIER</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- M3 Judge Auditing Block -->
-                <div class="judge-deck liquid-glass">
-                    <div class="deck-header">
-                        <div class="deck-title">M3 SKEPTICAL JUDGE | EVIDENCE AUDIT</div>
-                    </div>
-                    <div class="judge-grid">
-                        <div class="judge-cell">
-                            <label>CLAIM UNDER ANALYSIS</label>
-                            <div id="judge-claim" class="cell-value">Target registration records match 2022 dataset core signature.</div>
-                        </div>
-                        <div class="judge-cell">
-                            <label>EVIDENCE SNIPPET</label>
-                            <div id="judge-evidence" class="cell-snippet">"...db_dump_2022; system_id: target_record_alpha..."</div>
-                        </div>
-                        <div class="judge-cell">
-                            <label>VERIFICATION METRIC</label>
-                            <div id="judge-metric" class="cell-badge success">
-                                <span class="badge-label">PASSED</span>
-                                <span class="badge-meta">Confidence Score: 0.982</span>
+                        <!-- Bottom: Active Bot Fleet -->
+                        <div class="bento-card bot-fleet-panel">
+                            <div class="bento-card-inner">
+                                <div class="panel-header">
+                                    <span>ACTIVE BOT FLEET</span>
+                                    <span class="panel-count">04 UNITS</span>
+                                </div>
+                                <div class="bot-fleet-list" id="bot-fleet-list">
+                                    <!-- Rendered dynamically by initBotFleet() in app.js -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -845,6 +1560,30 @@
     </div>
 </div>
 
+<!-- Download Variant Selector Modal -->
+<div id="variant-selector-modal" class="mh-modal-overlay" style="display:none;" onclick="if(event.target === this) closeVariantSelector()">
+    <div class="mh-modal liquid-glass">
+        <div class="modal-header">
+            <button class="modal-close-btn" onclick="closeVariantSelector()">✕</button>
+            <div class="modal-title-row">
+                <div class="modal-icon-large" id="variant-selector-icon">⬇️</div>
+                <div class="modal-title-info">
+                    <h2 id="variant-selector-name">Download Model</h2>
+                    <span class="modal-author" id="variant-selector-subtitle">Choose a version to download</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="modal-section">
+                <div class="modal-section-title">AVAILABLE DOWNLOAD VERSIONS</div>
+                <div class="modal-variants" id="variant-selector-list">
+                    <div class="mh-variant-loading">Choose a version…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Confirmation Modal -->
 <div id="delete-modal" class="mh-modal-overlay" style="display:none;" onclick="if(event.target === this) closeDeleteModal()">
     <div class="mh-modal liquid-glass">
@@ -897,6 +1636,25 @@
                     <!-- Multi-Modal Intelligence Canvas -->
                     <div class="intelligence-canvas liquid-glass">
                         <div class="canvas-content" id="chat-document-canvas">
+                            <!-- ═ n8n PROGRESSIVE LOADING CHECKLIST ═ -->
+                            <div class="n8n-loading-checklist" id="n8n-checklist" aria-label="n8n workflow progress">
+                                <div class="checklist-title">WORKFLOW PIPELINE</div>
+                                <div class="checklist-items">
+                                    <div class="checklist-item" data-stage="refining">
+                                        <div class="checklist-status pending" id="stage-refining">🟡</div>
+                                        <span>Refining</span>
+                                    </div>
+                                    <div class="checklist-item" data-stage="scraping">
+                                        <div class="checklist-status idle" id="stage-scraping">⚪</div>
+                                        <span>Scraping</span>
+                                    </div>
+                                    <div class="checklist-item" data-stage="judging">
+                                        <div class="checklist-status idle" id="stage-judging">⚪</div>
+                                        <span>Judging</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="chat-history" id="chat-history-stream">
                                 <!-- AI Responses and User Directives flow here -->
                                 <div class="chat-bubble ai">
@@ -944,32 +1702,31 @@
                         </div>
                     </div>
 
-                    <!-- Pinned Reference Sidebar (Optional) -->
+                    <!-- Pinned Reference Sidebar with Intel Graph -->
                     <aside class="pinned-reference liquid-glass" id="pinned-doc-view">
                         <div class="panel-header">
-                            <span>PINNED_REFERENCE</span>
+                            <span>INTEL GRAPH</span>
                             <button class="icon-btn sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                         </div>
-                        <div class="pinned-content">
-                            <article class="tactical-briefing">
-                                <h3>REF: DOC_ARCH_772</h3>
-                                <p>Source: Recursive Dark Web Scrape</p>
-                                <hr class="glass-hr">
-                                <div class="briefing-section">
-                                    <h4>01. Infrastructure Map</h4>
-                                    <div class="tactical-table-wrap">
-                                        <table class="tactical-table">
-                                            <thead><tr><th>NODE</th><th>VAL</th></tr></thead>
-                                            <tbody>
-                                                <tr><td class="mono">Core Node</td><td class="mono">192.168.100.41</td></tr>
-                                                <tr><td class="mono">Proxy</td><td class="mono">10.0.55.12</td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </article>
+                        <!-- Interactive Intel Graph Container -->
+                        <div class="intel-graph-container" id="intel-graph-container">
+                            <svg class="intel-graph-svg" id="intel-graph-svg" width="100%" height="100%"></svg>
                         </div>
-            </aside>
+                        <div class="intel-graph-legend" id="intel-graph-legend">
+                            <div class="legend-item">
+                                <span class="legend-dot ip-node"></span>
+                                <span>IP Address</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot target-node"></span>
+                                <span>Target</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot entity-node"></span>
+                                <span>Entity</span>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </section>
         </main>
@@ -1001,7 +1758,10 @@
         </div>
     </footer>
 
+    <!-- Canvas Wave Gauge Animations -->
+    <script src="canvas-wave-gauges.js"></script>
     <script src="app.js"></script>
     <script src="app-models-enhanced.js"></script>
+    <script src="app-enhanced.js"></script>
 </body>
 </html>

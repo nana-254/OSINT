@@ -2,9 +2,11 @@ version: '3.8'
 
 services:
   n8n:
-    image: docker.n8n.io/n8nio/n8n
+    image: docker.n8n.io/n8nio/n8n:latest
     container_name: osint_n8n
-    network_mode: host
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
     environment:
       - N8N_HOST=localhost
       - N8N_PORT=5678
@@ -12,46 +14,61 @@ services:
       - NODE_ENV=production
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=UTC
-      # --- Memory & Cleanup ---
+      # Execution settings optimized for long-running workflows
       - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
       - EXECUTIONS_DATA_PRUNE=true
       - EXECUTIONS_DATA_MAX_AGE=24
-      - DB_SQLITE_VACUUM_ON_STARTUP=true
-      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
       - NODE_OPTIONS=--max-old-space-size=1024
-      # --- Redis Config ---
-      - N8N_CACHE_ENABLED=true
-      - N8N_CACHE_REDIS_HOST=localhost
-      - N8N_CACHE_REDIS_PORT=6379
-      - EXECUTIONS_MODE=queue
-      - QUEUE_BULL_REDIS_HOST=localhost
-      - QUEUE_BULL_REDIS_PORT=6379
-      - N8N_ENCRYPTION_KEY=633683a38c1f5951fd74be2a04870564a5318c8e15eeb81ccb13c72e8bff180c
+      # Database connection for n8n's internal state (Optional, but using SQLite to save RAM overhead, Postgres is for audit data)
+      - DB_TYPE=sqlite
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
     volumes:
       - ./n8n_data:/home/node/.n8n
-    restart: unless-stopped
+    extra_hosts:
+      # Allows n8n to connect to the host machine's network where Ollama runs locally
+      - "host.docker.internal:host-gateway"
     deploy:
       resources:
         limits:
           memory: 1.5G
           cpus: '1.5'
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: osint_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=osint_user
+      - POSTGRES_PASSWORD=osint_password
+      - POSTGRES_DB=osint_db
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
   redis:
     image: redis:alpine
     container_name: osint_redis
-    network_mode: host
-    command: redis-server --appendonly yes
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
     volumes:
       - ./redis_data:/data
-    restart: unless-stopped
+    command: redis-server --appendonly yes
 
   chromadb:
     image: chromadb/chroma:latest
     container_name: osint_chromadb
-    network_mode: host
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
     environment:
       - IS_PERSISTENT=TRUE
       - PERSIST_DIRECTORY=/chroma/chroma
     volumes:
       - ./chroma_data:/chroma/chroma
-    restart: unless-stopped

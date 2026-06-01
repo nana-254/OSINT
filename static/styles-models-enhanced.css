@@ -7,7 +7,8 @@
     display: grid;
     grid-template-columns: 1fr 340px;
     gap: 24px;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
 }
 
 .mh-left {
@@ -31,6 +32,9 @@
 .mh-search-panel {
     position: relative;
     padding: 20px;
+    border-radius: var(--radius-md);
+    overflow: visible !important;
+    z-index: 400;
 }
 
 .mh-search-row {

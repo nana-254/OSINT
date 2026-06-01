@@ -29,6 +29,17 @@ document.addEventListener('DOMContentLoaded', () => {
     initChat();
     initClock();
     initModels();
+    initNetworkSimulation();
+    // Enhanced UI Features
+    initHealthSparkline();
+    initIntelGraph();
+    initN8nChecklist();
+    initCrtTerminal();
+    initEnhancedModelCards();
+    initSettingsMatrix();
+    // Tor Integration
+    initTorIntegration();
+    getTorBridgeInfo();
 });
 
 /**
@@ -62,11 +73,54 @@ function setTheme(theme) {
 function initSidebar() {
     const toggle = document.getElementById('sidebar-toggle');
     const shell = document.getElementById('app-shell');
-    
+    if (!toggle || !shell) return;
+
     toggle.addEventListener('click', () => {
         window.AppStore.sidebarCollapsed = !window.AppStore.sidebarCollapsed;
         shell.classList.toggle('sidebar-collapsed', window.AppStore.sidebarCollapsed);
     });
+}
+
+/**
+ * Zen Mode — collapses sidebar and hides ticker tape for focused work
+ */
+function toggleZenMode(enabled) {
+    document.body.classList.toggle('zen-mode', enabled);
+    window.AppStore.zenMode = enabled;
+    logToConsole(`Zen Mode ${enabled ? 'ACTIVATED — UI minimized' : 'DEACTIVATED — UI restored'}`, enabled ? 'warn' : 'info');
+}
+
+/**
+ * Emergency Stop — halts all active OSINT operations and n8n workflows
+ */
+function emergencyStop() {
+    const btn = document.getElementById('emergency-stop-btn');
+    if (!btn) return;
+
+    // Visual acknowledgement
+    btn.style.color = '#fff';
+    btn.style.background = 'rgba(255, 65, 108, 0.18)';
+
+    logToConsole('[EMERGENCY STOP] Halting all OSINT operations...', 'error');
+
+    // Attempt to cancel all in-flight requests via abort signal
+    if (window._osintAbortController) {
+        window._osintAbortController.abort();
+    }
+    window._osintAbortController = new AbortController();
+
+    // POST stop signal to backend if available
+    const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+    fetch(`${baseUrl}/api/v1/system/emergency-stop`, {
+        method: 'POST',
+        signal: window._osintAbortController.signal
+    }).catch(() => {/* silent — backend may be offline */});
+
+    // Debounce reset visual after 2s
+    setTimeout(() => {
+        btn.style.color = '';
+        btn.style.background = '';
+    }, 2000);
 }
 
 /**
@@ -115,60 +169,294 @@ function initRouter() {
  */
 function initTelemetry() {
     updateGauges(); // draw immediately on load
+    
+    // Poll telemetry every 2 seconds
+    setInterval(() => {
+        const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+        fetch(`${baseUrl}/api/v1/system/telemetry`)
+            .then(r => r.json())
+            .then(data => {
+                if(data.error) return;
+                
+                window.AppStore.telemetry.ram = data.ram_percent;
+                window.AppStore.telemetry.vram = data.ram_percent; // placeholder until actual vram is supported
+                window.AppStore.telemetry.temp = parseInt(data.temp) || 48;
+                window.AppStore.telemetry.uptime = data.uptime.split('.')[0];
+                window.AppStore.telemetry.load = data.load;
+                
+                const uptimeEl = document.getElementById('sys-uptime');
+                const loadEl = document.getElementById('sys-load');
+                if(uptimeEl) uptimeEl.textContent = window.AppStore.telemetry.uptime;
+                if(loadEl) loadEl.textContent = window.AppStore.telemetry.load.toFixed(2);
+                
+                updateGauges();
+            })
+            .catch(err => console.error("Telemetry error", err));
+    }, 2000);
 }
 
 function updateGauges() {
-    updateGauge('vram-gauge', 'vram-value', window.AppStore.telemetry.vram, '%');
-    updateGauge('ram-gauge', 'ram-value', window.AppStore.telemetry.ram, '%');
-    updateGauge('temp-gauge', 'temp-value', window.AppStore.telemetry.temp, '°C');
+    const t = window.AppStore.telemetry;
+    // New bento ring elements
+    updateBentoRing('vram-ring', 'vram-value', t.vram, '%', 'cyan');
+    updateBentoRing('cpu-ring',  'cpu-value',  t.cpu  || 50, '%', 'green');
+    updateBentoRing('ram-ring',  'ram-value',  t.ram,  '%', 'cyan');
+    updateBentoRing('temp-ring', 'temp-value', t.temp, '°C', 'amber');
+    
+    // Update canvas wave gauges
+    if (window.gaugeInstances) {
+        updateWaveGauge('vram-wave-canvas', t.vram);
+        updateWaveGauge('cpu-wave-canvas', t.cpu || 50);
+        updateWaveGauge('ram-wave-canvas', t.ram);
+        updateWaveGauge('temp-wave-canvas', t.temp);
+    }
+    
+    // Update ticker tape values
+    const tickerVram = document.getElementById('ticker-vram');
+    const tickerTemp = document.getElementById('ticker-temp');
+    if (tickerVram) { tickerVram.textContent = `${Math.round(t.vram)}%`; tickerVram.className = `ticker-item-val ${t.vram > 80 ? 'crit' : t.vram > 60 ? 'warn' : 'ok'}`; }
+    if (tickerTemp) { tickerTemp.textContent = `${Math.round(t.temp)}°C`; tickerTemp.className = `ticker-item-val ${t.temp > 75 ? 'crit' : t.temp > 65 ? 'warn' : 'ok'}`; }
 }
 
+function updateBentoRing(ringId, labelId, value, unit, colorClass) {
+    const ring  = document.getElementById(ringId);
+    const label = document.getElementById(labelId);
+    if (!ring || !label) return;
+
+    const circumference = 264; // 2π * r=42
+    const pct    = Math.min(Math.max(value, 0), 100);
+    const maxPct = unit === '°C' ? Math.min(value / 100, 1) : pct / 100;
+    const offset = circumference - maxPct * circumference;
+    ring.style.strokeDashoffset = offset;
+    label.textContent = `${Math.round(value)}${unit}`;
+
+    // Dynamic color-coding via class swaps
+    ring.classList.remove('ring-cyan', 'ring-green', 'ring-amber', 'ring-crimson');
+    if (unit === '%') {
+        ring.classList.add(pct > 80 ? 'ring-crimson' : pct > 60 ? 'ring-amber' : `ring-${colorClass}`);
+    } else {
+        ring.classList.add(value > 75 ? 'ring-crimson' : value > 65 ? 'ring-amber' : `ring-${colorClass}`);
+    }
+}
+
+/** Legacy fallback for any code still calling updateGauge with old IDs */
 function updateGauge(gaugeId, labelId, value, unit) {
     const gauge = document.getElementById(gaugeId);
     const label = document.getElementById(labelId);
     if (!gauge || !label) return;
-
     const ring = gauge.querySelector('.gauge-ring');
     if (!ring) return;
-
-    const circumference = 264; // 2 * PI * 42
+    const circumference = 264;
     const offset = circumference - (Math.min(value, 100) / 100) * circumference;
     ring.style.transition = 'stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1)';
     ring.style.strokeDashoffset = offset;
-
     label.textContent = `${Math.round(value)}${unit}`;
+}
 
-    // Color-code VRAM/RAM by load
-    if (unit === '%') {
-        ring.style.stroke = value > 80 ? 'var(--clr-critical)' : value > 60 ? 'var(--clr-warning)' : 'var(--accent-primary)';
+/**
+ * TOR INTEGRATION — Circuit Monitoring & Real-time Data
+ */
+function initTorIntegration() {
+    // Initialize Tor circuit monitor
+    updateTorCircuitData();
+    
+    // Poll Tor circuit every 5 seconds
+    setInterval(() => {
+        updateTorCircuitData();
+    }, 5000);
+}
+
+function updateTorCircuitData() {
+    const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+    
+    fetch(`${baseUrl}/api/v1/tor/circuit`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                logToConsole(`TOR: ${data.error}`, 'warn');
+                return;
+            }
+            
+            // Update Tor status badge
+            const statusBadge = document.getElementById('tor-status-badge');
+            const statusText = document.getElementById('tor-status-text');
+            
+            if (statusBadge && statusText) {
+                statusBadge.classList.remove('error');
+                statusBadge.classList.add('connected');
+                
+                const circuitCount = data.circuit_count || 0;
+                statusText.textContent = circuitCount > 0 ? 
+                    `CIRCUIT ACTIVE · ${circuitCount} OPEN` : 
+                    'AWAITING CONNECTION';
+            }
+            
+            // Update circuit visualization
+            if (data.circuits && data.circuits.length > 0) {
+                const circuit = data.circuits[0]; // Use first circuit
+                updateTorPipelineVisualization(circuit);
+            }
+            
+            // Log status
+            logToConsole(`TOR: Circuit refreshed (${data.circuit_count} active)`, 'ok');
+        })
+        .catch(err => {
+            logToConsole(`TOR: Connection failed - ${err.message}`, 'error');
+            
+            // Update status badge
+            const statusBadge = document.getElementById('tor-status-badge');
+            const statusText = document.getElementById('tor-status-text');
+            
+            if (statusBadge && statusText) {
+                statusBadge.classList.remove('connected');
+                statusBadge.classList.add('error');
+                statusText.textContent = 'OFFLINE';
+            }
+        });
+}
+
+function updateTorPipelineVisualization(circuit) {
+    // Update the three Tor nodes with real circuit data
+    const nodes = circuit.nodes || [];
+    
+    // Node 1: Entry Guard
+    if (nodes[0]) {
+        const node1 = nodes[0];
+        const entryLabel = document.getElementById('tor-entry-cc');
+        if (entryLabel) {
+            const country = node1.country || 'XX';
+            const type = 'GRD'; // Guard
+            entryLabel.textContent = `${country} · ${type}`;
+        }
+        
+        // Tooltip
+        const entryNode = document.getElementById('tor-node-entry');
+        if (entryNode) {
+            entryNode.title = `Entry Guard: ${node1.name || 'Unknown'} (${node1.ip})`;
+        }
     }
+    
+    // Node 2: Middle Relay
+    if (nodes[1]) {
+        const node2 = nodes[1];
+        const relayLabel = document.getElementById('tor-relay-cc');
+        if (relayLabel) {
+            const country = node2.country || 'XX';
+            const type = 'MID'; // Middle
+            relayLabel.textContent = `${country} · ${type}`;
+        }
+        
+        const relayNode = document.getElementById('tor-node-relay');
+        if (relayNode) {
+            relayNode.title = `Middle Relay: ${node2.name || 'Unknown'} (${node2.ip})`;
+        }
+    }
+    
+    // Node 3: Exit Node
+    if (nodes[2]) {
+        const node3 = nodes[2];
+        const exitLabel = document.getElementById('tor-exit-cc');
+        if (exitLabel) {
+            const country = node3.country || 'XX';
+            const type = 'EXT'; // Exit
+            exitLabel.textContent = `${country} · ${type}`;
+        }
+        
+        const exitNode = document.getElementById('tor-node-exit');
+        if (exitNode) {
+            exitNode.title = `Exit Node: ${node3.name || 'Unknown'} (${node3.ip})`;
+        }
+    }
+}
+
+function getTorBridgeInfo() {
+    const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+    
+    fetch(`${baseUrl}/api/v1/tor/bridges`)
+        .then(r => r.json())
+        .then(data => {
+            logToConsole(`TOR: ${data.total} bridges available`, 'info');
+            window.AppStore.torBridges = data.bridges;
+        })
+        .catch(err => logToConsole(`Failed to fetch bridges: ${err.message}`, 'error'));
 }
 
 /**
  * Bot Fleet Logic
  */
 function initBotFleet() {
-    const grid = document.getElementById('bot-fleet-grid');
-    if (!grid) return;
+    const list = document.getElementById('bot-fleet-list');
+    if (!list) return;
 
-    const renderBots = () => {
-        grid.innerHTML = window.AppStore.bots.map(bot => `
-            <div class="bot-card ${bot.status !== 'STANDBY' ? 'active' : 'idle'} ${bot.status === 'RATE_LIMITED' ? 'warning' : ''}">
-                <div class="bot-icon ${bot.type}"></div>
-                <div class="bot-info">
-                    <span class="bot-name">${bot.id}</span>
-                    <span class="bot-status">${bot.status}</span>
-                </div>
-                ${bot.load > 0 ? `
-                    <div class="bot-load-mini" style="height:2px; background: rgba(255,255,255,0.1); margin-top:8px; border-radius:1px; overflow:hidden;">
-                        <div style="width:${bot.load}%; height:100%; background:var(--accent-primary);"></div>
-                    </div>
-                ` : ''}
+    // 1. Initial State Definition
+    const bots = [
+        { id: 'BOT_01_ALPHA', target: 'Scraping LeakDB...' },
+        { id: 'BOT_02_BRAVO', target: 'Parsing JSON...' },
+        { id: 'BOT_03_CHARLIE', target: 'Verifying Hash...' },
+        { id: 'BOT_04_DELTA', target: 'Bypassing CAPTCHA...' }
+    ];
+
+    // 2. DOM Rendering
+    list.innerHTML = bots.map((bot, i) => `
+        <div class="fleet-unit" id="fleet-unit-${i}">
+            <div class="unit-head">
+                <span class="unit-name">${bot.id}</span>
+                <span class="status-chip secure">ACTIVE</span>
             </div>
-        `).join('');
-    };
+            <div class="unit-body">
+                <div class="unit-task" id="fleet-task-${i}">${bot.target}</div>
+                <div class="unit-progress-row">
+                    <div class="unit-progress-label">
+                        <div class="micro-dots-track">
+                            <div class="micro-dots"></div>
+                        </div>
+                    </div>
+                    <div class="unit-percent" id="fleet-pct-${i}">0%</div>
+                </div>
+                <div class="unit-progress-bar">
+                    <div class="progress-fill pulse-glow" id="fleet-bar-${i}" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+    `).join('');
 
-    renderBots();
+    // 3. DOM Selection Strategy (Cache elements to avoid re-querying)
+    const uiElements = bots.map((_, i) => ({
+        container: document.getElementById(`fleet-unit-${i}`),
+        taskEl: document.getElementById(`fleet-task-${i}`),
+        pctEl: document.getElementById(`fleet-pct-${i}`),
+        barEl: document.getElementById(`fleet-bar-${i}`),
+        progress: Math.floor(Math.random() * 80) // Stagger initial progress
+    }));
+
+    const mockTasks = [
+        'Parsing JSON...', 'Bypassing CAPTCHA...', 'Verifying Hash...', 
+        'Scraping LeakDB...', 'Extracting PGP...', 'Analyzing Network...',
+        'Compiling Dossier...', 'Decrypting Payload...'
+    ];
+
+    // 4. Update Loop
+    setInterval(() => {
+        uiElements.forEach(ui => {
+            // Increment progress by a random float between 1.0 and 3.0
+            ui.progress += Math.random() * 2 + 1;
+            
+            if (ui.progress >= 100) {
+                ui.progress = 0;
+                ui.taskEl.textContent = mockTasks[Math.floor(Math.random() * mockTasks.length)];
+                
+                // Flash neon green
+                ui.container.style.backgroundColor = 'rgba(0, 255, 0, 0.1)';
+                setTimeout(() => {
+                    ui.container.style.backgroundColor = '';
+                }, 300);
+            }
+            
+            const p = Math.floor(ui.progress);
+            ui.pctEl.textContent = p + '%';
+            ui.barEl.style.width = p + '%';
+        });
+    }, 150);
 }
 
 /**
@@ -260,20 +548,336 @@ function appendMessage(role, text, sender = 'OPERATOR') {
 /**
  * Utilities
  */
-function logToConsole(msg, type = 'info') {
+let logLineCount = 0;
+const MAX_LOGS = 500;
+let logStreamPaused = false;
+let logAutoscroll = true;
+let currentLogFilter = 'all';
+let currentSearchTerm = '';
+let useRegex = false;
+let logSimInterval = null;
+
+function initLogStream() {
+    const consoleOutput = document.getElementById('console-output');
+    const pauseBtn = document.getElementById('log-pause-btn');
+    const autoscrollCb = document.getElementById('log-autoscroll');
+    const clearBtn = document.getElementById('log-clear-btn');
+    const searchInput = document.getElementById('log-search-input');
+    const regexBtn = document.getElementById('log-regex-toggle');
+    const searchClear = document.getElementById('log-search-clear');
+    const filterChips = document.querySelectorAll('.log-chip');
+    
+    if (!consoleOutput) return;
+
+    // Clear initial mock data
+    consoleOutput.innerHTML = '';
+    
+    // Autoscroll toggle
+    if (autoscrollCb) {
+        autoscrollCb.addEventListener('change', (e) => {
+            logAutoscroll = e.target.checked;
+            consoleOutput.dataset.autoscroll = logAutoscroll.toString();
+            if (logAutoscroll) consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        });
+    }
+
+    // Manual scroll overrides autoscroll
+    consoleOutput.addEventListener('scroll', () => {
+        if (!logAutoscroll) return;
+        const isAtBottom = Math.abs(consoleOutput.scrollHeight - consoleOutput.clientHeight - consoleOutput.scrollTop) < 10;
+        if (!isAtBottom && autoscrollCb) {
+            logAutoscroll = false;
+            autoscrollCb.checked = false;
+            consoleOutput.dataset.autoscroll = 'false';
+        }
+    });
+
+    // Pause toggle
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            logStreamPaused = !logStreamPaused;
+            consoleOutput.dataset.paused = logStreamPaused.toString();
+            pauseBtn.classList.toggle('active', logStreamPaused);
+            pauseBtn.setAttribute('aria-pressed', logStreamPaused);
+            
+            const lsbStream = document.getElementById('lsb-stream');
+            if (lsbStream) {
+                lsbStream.innerHTML = logStreamPaused ? '&#10074;&#10074; PAUSED' : '&#9679; STREAMING';
+                lsbStream.classList.toggle('paused', logStreamPaused);
+            }
+        });
+    }
+
+    // Clear
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            consoleOutput.innerHTML = '';
+            logLineCount = 0;
+            updateLogStatus();
+        });
+    }
+
+    // Filters
+    filterChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            filterChips.forEach(c => {
+                c.classList.remove('active');
+                c.setAttribute('aria-pressed', 'false');
+            });
+            chip.classList.add('active');
+            chip.setAttribute('aria-pressed', 'true');
+            
+            currentLogFilter = chip.dataset.filter;
+            const lsbFilter = document.getElementById('lsb-filter');
+            if (lsbFilter) lsbFilter.textContent = `FILTER: ${currentLogFilter.toUpperCase()}`;
+            
+            applyLogFilters();
+        });
+    });
+
+    // Search
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            currentSearchTerm = e.target.value;
+            if (searchClear) searchClear.style.display = currentSearchTerm ? 'block' : 'none';
+            applyLogFilters();
+        });
+    }
+    if (regexBtn) {
+        regexBtn.addEventListener('click', () => {
+            useRegex = !useRegex;
+            regexBtn.classList.toggle('active', useRegex);
+            regexBtn.setAttribute('aria-pressed', useRegex);
+            applyLogFilters();
+        });
+    }
+    if (searchClear) {
+        searchClear.addEventListener('click', () => {
+            if(searchInput) searchInput.value = '';
+            currentSearchTerm = '';
+            searchClear.style.display = 'none';
+            applyLogFilters();
+        });
+    }
+
+    // Start Simulation
+    scheduleNextLog();
+}
+
+function createJsonTree(obj, isRoot = true) {
+    if (obj === null) return '<span class="json-null">null</span>';
+    if (typeof obj === 'number') return `<span class="json-number">${obj}</span>`;
+    if (typeof obj === 'boolean') return `<span class="json-boolean">${obj}</span>`;
+    if (typeof obj === 'string') return `<span class="json-string">"${obj.replace(/"/g, '\\"')}"</span>`;
+    
+    if (Array.isArray(obj)) {
+        if (obj.length === 0) return '<span class="json-bracket">[]</span>';
+        let html = `<span class="json-toggle expanded"></span><span class="json-bracket">[</span><ul class="json-tree">`;
+        obj.forEach((val, i) => {
+            html += `<li>${createJsonTree(val, false)}${i < obj.length - 1 ? ',' : ''}</li>`;
+        });
+        html += `</ul><span class="json-bracket">]</span>`;
+        return html;
+    }
+    
+    if (typeof obj === 'object') {
+        const keys = Object.keys(obj);
+        if (keys.length === 0) return '<span class="json-bracket">{}</span>';
+        let html = (isRoot ? `<div class="json-tree">` : '') + `<span class="json-toggle expanded"></span><span class="json-bracket">{</span><ul>`;
+        keys.forEach((key, i) => {
+            html += `<li><span class="json-key">"${key}"</span>: ${createJsonTree(obj[key], false)}${i < keys.length - 1 ? ',' : ''}</li>`;
+        });
+        html += `</ul><span class="json-bracket">}</span>` + (isRoot ? `</div>` : '');
+        return html;
+    }
+    return String(obj);
+}
+
+// Global click handler for JSON toggles
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('json-toggle')) {
+        const toggle = e.target;
+        const ul = toggle.nextElementSibling.nextElementSibling; // Span bracket, then UL
+        if (ul && ul.tagName === 'UL') {
+            const isExpanded = toggle.classList.contains('expanded');
+            toggle.classList.toggle('expanded', !isExpanded);
+            toggle.classList.toggle('collapsed', isExpanded);
+            ul.style.display = isExpanded ? 'none' : 'block';
+        }
+    }
+});
+
+
+function parseLogTokens(msg) {
+    let parsed = msg;
+    // URL highlight
+    parsed = parsed.replace(/(https?:\/\/[^\s]+)/g, '<span class="ll-token url">$1</span>');
+    // Numbers
+    parsed = parsed.replace(/\b(\d+(?:\.\d+)?(?:ms|s|gb|mb|kb)?)\b/gi, '<span class="ll-token num">$1</span>');
+    // Common tags
+    parsed = parsed.replace(/\[(OK|SEC)\]/g, '[<span class="ll-token ok">$1</span>]');
+    parsed = parsed.replace(/\[(WARN|BLOCK)\]/g, '[<span class="ll-token warn">$1</span>]');
+    parsed = parsed.replace(/\[(ERR|FAIL)\]/g, '[<span class="ll-token err">$1</span>]');
+    // Context tokens
+    parsed = parsed.replace(/\{([^}]+)\}/g, '<span class="ll-token ctx">$1</span>');
+    return parsed;
+}
+
+function applyLogFilters() {
+    const consoleOutput = document.getElementById('console-output');
+    if (!consoleOutput) return;
+    
+    const lines = consoleOutput.querySelectorAll('.log-line');
+    let visibleCount = 0;
+    
+    let regex = null;
+    if (currentSearchTerm) {
+        try {
+            regex = useRegex ? new RegExp(currentSearchTerm, 'i') : new RegExp(currentSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        } catch(e) {}
+    }
+
+    lines.forEach(line => {
+        const source = line.dataset.source || 'system';
+        const msgEl = line.querySelector('.ll-msg');
+        const rawText = msgEl ? (msgEl.textContent || '') : '';
+        
+        // Filter check
+        let show = currentLogFilter === 'all' || source === currentLogFilter;
+        
+        // Search check
+        if (show && regex) {
+            show = regex.test(rawText) || regex.test(line.textContent || '');
+        }
+
+        line.style.display = show ? 'flex' : 'none';
+        
+        // Highlight logic
+        if (show) {
+            visibleCount++;
+            if (msgEl) {
+                // Reset to un-highlighted parsed tokens first
+                msgEl.innerHTML = line.dataset.parsedMsg || msgEl.innerHTML;
+                
+                if (regex && currentSearchTerm) {
+                    // Primitive highlighting - could be improved to not break HTML tags
+                    // For now, only highlight if not matching inside tags
+                    const walker = document.createTreeWalker(msgEl, NodeFilter.SHOW_TEXT, null, false);
+                    const nodesToReplace = [];
+                    let n;
+                    while(n = walker.nextNode()) nodesToReplace.push(n);
+                    
+                    nodesToReplace.forEach(node => {
+                        if(node.nodeValue.trim() && regex.test(node.nodeValue)) {
+                            const span = document.createElement('span');
+                            span.innerHTML = node.nodeValue.replace(regex, match => `<span class="log-match">${match}</span>`);
+                            node.parentNode.replaceChild(span, node);
+                        }
+                    });
+                }
+            }
+        }
+    });
+
+    const lsbMatched = document.getElementById('lsb-matched');
+    if (lsbMatched) {
+        lsbMatched.textContent = (currentSearchTerm || currentLogFilter !== 'all') ? `MATCHED: ${visibleCount}` : '';
+    }
+}
+
+function logToConsole(msg, type = 'info', source = 'system') {
+    if (logStreamPaused) return;
+
     const body = document.getElementById('console-output');
     if (!body) return;
 
+    logLineCount++;
+    const id = logLineCount.toString().padStart(4, '0');
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    
+    let badge = 'info';
+    let badgeText = 'INFO';
+    if (type === 'success') { badge = 'ok'; badgeText = 'OK'; }
+    if (type === 'warn') { badge = 'warn'; badgeText = 'WARN'; }
+    if (type === 'error') { badge = 'err'; badgeText = 'ERR'; source = 'error'; }
+
+    let sourceLabel = source.toUpperCase();
+    if (sourceLabel.length > 10) sourceLabel = sourceLabel.substring(0, 10);
+
+    let parsedMsg = '';
+    if (typeof msg === 'object' && msg !== null) {
+        parsedMsg = createJsonTree(msg, true);
+    } else {
+        parsedMsg = parseLogTokens(String(msg));
+    }
+
     const entry = document.createElement('div');
-    entry.className = 'log-entry';
+    entry.className = 'log-line';
+    entry.dataset.source = source;
+    entry.dataset.parsedMsg = parsedMsg; // Store for filter resets
     entry.innerHTML = `
-        <span class="log-ts">[${new Date().toLocaleTimeString()}]</span>
-        <span class="log-msg">${msg}</span>
-        ${type === 'success' ? '<span class="log-tag success">OK</span>' : ''}
+        <span class="ll-ln">${id}</span>
+        <span class="ll-ts">${ts}</span>
+        <span class="ll-src">[${sourceLabel}]</span>
+        <span class="ll-msg">${parsedMsg}</span>
+        <span class="ll-badge ${badge}">${badgeText}</span>
     `;
+
     body.appendChild(entry);
-    body.scrollTop = body.scrollHeight;
+
+    // Enforce MAX_LOGS
+    while (body.children.length > MAX_LOGS) {
+        body.removeChild(body.firstChild);
+    }
+
+    if (logAutoscroll) {
+        body.scrollTop = body.scrollHeight;
+    }
+
+    // If there is an active filter or search, apply it to the new log
+    if (currentLogFilter !== 'all' || currentSearchTerm) {
+        applyLogFilters();
+    } else {
+        updateLogStatus();
+    }
 }
+
+function updateLogStatus() {
+    const lsbCount = document.getElementById('lsb-count');
+    const body = document.getElementById('console-output');
+    if (lsbCount && body) {
+        lsbCount.textContent = `${body.children.length} LINES`;
+    }
+}
+
+// ── Simulation Logic ──
+const simSources = ['system', 'ml', 'scraper'];
+const simLogs = [
+    { text: "Crawling darkweb market {DREAD_HUB} — page depth 4", type: "info", source: "scraper" },
+    { text: "Encountered CAPTCHA on endpoint /api/v2/intel. Solving via proxy...", type: "warn", source: "scraper" },
+    { text: "Extracted 1,402 PGP keys from target node.", type: "success", source: "scraper" },
+    { text: "Context shifted: {OSINT_DEEP_DIVE} — injecting prompt templates", type: "info", source: "ml" },
+    { text: "Llama3 offloading tensor slices... 24/32 layers in VRAM", type: "info", source: "system" },
+    { text: "Connection timeout on Tor circuit IS->DE. Rebuilding...", type: "error", source: "system" },
+    { text: { target: "0x4F92B...", nodes_discovered: 12, malicious: true, signatures: ["C2", "RANSOM"] }, type: "info", source: "ml" },
+    { text: "Analyzed 450 posts. Found 3 positive matches for target handle.", type: "success", source: "ml" },
+    { text: "Network latency spike: 425ms", type: "warn", source: "system" }
+];
+
+function scheduleNextLog() {
+    const delay = Math.floor(Math.random() * 500) + 300; // 300-800ms
+    logSimInterval = setTimeout(() => {
+        if (!logStreamPaused) {
+            const log = simLogs[Math.floor(Math.random() * simLogs.length)];
+            logToConsole(log.text, log.type, log.source);
+        }
+        scheduleNextLog();
+    }, delay);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initLogStream();
+});
 
 function initClock() {
     const el = document.getElementById('tactical-clock');
@@ -1289,7 +1893,89 @@ function updateSystemInfo(specs) {
 function showVariantSelector(modelName) {
     const model = OllamaLibrary.getModel(modelName);
     if (!model) return;
-    
-    showLibraryModelDetails(modelName);
+
+    const icon = extractFamily(modelName);
+    const selectorName = document.getElementById('variant-selector-name');
+    const selectorSubtitle = document.getElementById('variant-selector-subtitle');
+    const selectorIcon = document.getElementById('variant-selector-icon');
+    const selectorList = document.getElementById('variant-selector-list');
+    const selectorModal = document.getElementById('variant-selector-modal');
+
+    if (!selectorList || !selectorModal) return;
+
+    selectorIcon.textContent = icon;
+    selectorName.textContent = model.name;
+    selectorSubtitle.textContent = 'Choose a version to download';
+
+    const renderVariants = (sizes) => {
+        if (!sizes || sizes.length === 0) {
+            selectorList.innerHTML = '<div class="mh-variant-loading">No download versions available</div>';
+            return;
+        }
+
+        selectorList.innerHTML = sizes.map(size => {
+            const fullName = `${model.name}:${size}`;
+            return `
+                <button class="modal-variant-btn" onclick="closeVariantSelector(); pullModel('${fullName}')">
+                    <span class="variant-name">${fullName}</span>
+                    <span class="variant-download">↓</span>
+                </button>`;
+        }).join('');
+    };
+
+    if (model.sizes && model.sizes.length > 0) {
+        renderVariants(model.sizes);
+        selectorModal.style.display = 'flex';
+        return;
+    }
+
+    selectorList.innerHTML = '<div class="mh-variant-loading">Loading versions…</div>';
+    fetch(`${API_BASE}/api/v1/ollama/library/tags?model=${encodeURIComponent(model.name)}`)
+        .then(response => response.json())
+        .then(data => {
+            const tags = Array.isArray(data.tags) && data.tags.length ? data.tags : ['latest'];
+            renderVariants(tags);
+            selectorModal.style.display = 'flex';
+        })
+        .catch(() => {
+            selectorList.innerHTML = '<div class="mh-variant-loading">Could not load versions</div>';
+            selectorModal.style.display = 'flex';
+        });
 }
 
+function closeVariantSelector() {
+    const modal = document.getElementById('variant-selector-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+
+/**
+ * Network Simulation
+ */
+function initNetworkSimulation() {
+    setInterval(() => {
+        // Random throughput 2.0 to 8.5 MB/s
+        const throughput = (Math.random() * (8.5 - 2.0) + 2.0).toFixed(1);
+        const tEls = [document.getElementById('ticker-throughput'), document.getElementById('tor-throughput')];
+        tEls.forEach(el => {
+            if (el) {
+                el.textContent = `${throughput} MB/s`;
+                el.classList.remove('flash-update');
+                void el.offsetWidth; // trigger reflow
+                el.classList.add('flash-update');
+            }
+        });
+
+        // Random latency 12 to 45 ms
+        const latency = Math.floor(Math.random() * (45 - 12) + 12);
+        const lEls = [document.getElementById('ticker-latency'), document.getElementById('tor-latency')];
+        lEls.forEach(el => {
+            if (el) {
+                el.textContent = `${latency} ms`;
+                el.classList.remove('flash-update');
+                void el.offsetWidth; // trigger reflow
+                el.classList.add('flash-update');
+            }
+        });
+    }, 1200);
+}
