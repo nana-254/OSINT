@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles-models-enhanced.css">
 </head>
 <body class="tactical-theme">
     <!-- SVG FILTERS FOR LIQUID GLASS -->
@@ -565,219 +566,307 @@
                 </div>
             </section>
             
-            <!-- VIEW 5: OLLAMA MODELS -->
-            <section id="view-models" class="view" data-active="false">
-                <header class="view-header">
-                    <div class="header-main">
-                        <span class="view-eyebrow">LOCAL MODEL COMMAND CENTER</span>
-                        <h1>Ollama Model Hub</h1>
-                    </div>
-                    <div class="header-stats">
-                        <div class="mini-stat">
-                            <span class="stat-label">INSTALLED</span>
-                            <span class="stat-value" id="hdr-model-count">—</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="stat-label">DISK USAGE</span>
-                            <span class="stat-value" id="hdr-disk-usage">—</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="stat-label">LOADED</span>
-                            <span class="stat-value" id="hdr-loaded-count">0</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="stat-label">VRAM</span>
-                            <span class="stat-value" id="hdr-vram-state">IDLE</span>
-                        </div>
-                    </div>
-                </header>
+<!-- ENHANCED OLLAMA MODEL STORE VIEW -->
+<!-- Replace the existing view-models section with this -->
 
-                <!-- Toast -->
-                <div id="mh-toast" class="mh-toast" style="display:none;"></div>
+<section id="view-models" class="view" data-active="false">
+    <header class="view-header">
+        <div class="header-main">
+            <span class="view-eyebrow">AI MODEL MARKETPLACE</span>
+            <h1>Ollama Model Store</h1>
+        </div>
+        <div class="header-stats">
+            <div class="mini-stat">
+                <span class="stat-label">INSTALLED</span>
+                <span class="stat-value" id="hdr-model-count">—</span>
+            </div>
+            <div class="mini-stat">
+                <span class="stat-label">DISK USAGE</span>
+                <span class="stat-value" id="hdr-disk-usage">—</span>
+            </div>
+            <div class="mini-stat">
+                <span class="stat-label">LOADED</span>
+                <span class="stat-value" id="hdr-loaded-count">0</span>
+            </div>
+            <div class="mini-stat">
+                <span class="stat-label">VRAM</span>
+                <span class="stat-value" id="hdr-vram-state">IDLE</span>
+            </div>
+        </div>
+    </header>
 
-                <!-- Offline Banner -->
-                <div id="ollama-offline-banner" class="offline-banner" style="display:none;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    <div>
-                        <strong>OLLAMA OFFLINE</strong> — Cannot reach <code>http://localhost:11434</code>
-                        <button class="tactical-btn sm" style="margin-left:12px;" onclick="mhInit()">RETRY</button>
-                    </div>
-                </div>
+    <!-- Toast Notification -->
+    <div id="mh-toast" class="mh-toast" style="display:none;"></div>
 
-                <!-- MAIN LAYOUT: two columns -->
-                <div class="mh-layout">
+    <!-- Offline Banner -->
+    <div id="ollama-offline-banner" class="offline-banner" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <div>
+            <strong>OLLAMA OFFLINE</strong> — Cannot reach <code>http://localhost:11434</code>
+            <button class="tactical-btn sm" style="margin-left:12px;" onclick="loadInstalledModels()">RETRY</button>
+        </div>
+    </div>
 
-                    <!-- LEFT: Search + Library Browse + Installed -->
-                    <div class="mh-left">
+    <!-- Main Layout -->
+    <div class="mh-layout">
 
-                        <!-- Search bar -->
-                        <div class="mh-search-panel liquid-glass">
-                            <div class="mh-search-row">
-                                <div class="mh-search-field-wrap">
-                                    <svg class="mh-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                    </svg>
-                                    <input type="text" id="model-search-input" class="mh-search-input"
-                                        placeholder="Search any model — e.g. llama3.2, deepseek-r1, qwen2.5-coder…"
-                                        autocomplete="off" spellcheck="false">
-                                    <button id="model-search-clear" class="mh-clear-btn" style="display:none;" title="Clear">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                    </button>
-                                </div>
-                            </div>
-                            <!-- Live results dropdown -->
-                            <div id="mh-search-results" class="mh-search-results" style="display:none;"></div>
-                        </div>
+        <!-- LEFT COLUMN: Library Browser -->
+        <div class="mh-left">
 
-                        <!-- Model detail drawer (shown when a library model is selected) -->
-                        <div id="mh-model-drawer" class="mh-model-drawer liquid-glass" style="display:none;">
-                            <div class="mh-drawer-header">
-                                <div class="mh-drawer-title-row">
-                                    <span class="mh-drawer-icon" id="drawer-icon">🤖</span>
-                                    <div>
-                                        <span class="mh-drawer-name" id="drawer-name">—</span>
-                                        <span class="mh-drawer-family" id="drawer-family">—</span>
-                                    </div>
-                                    <button class="mh-drawer-close" onclick="closeModelDrawer()">✕</button>
-                                </div>
-                                <p class="mh-drawer-desc" id="drawer-desc">—</p>
-                            </div>
-
-                            <!-- Variants / Tags -->
-                            <div class="mh-drawer-section">
-                                <div class="mh-drawer-section-title">
-                                    VARIANTS
-                                    <span class="mh-drawer-hint">tap to pull</span>
-                                </div>
-                                <div id="drawer-variants" class="mh-variants-grid">
-                                    <div class="mh-variant-loading">Loading variants…</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Installed models -->
-                        <div class="mh-section-header">
-                            <div class="mh-section-left">
-                                <span class="mh-section-title">INSTALLED</span>
-                                <span class="mh-section-count" id="models-count-label">00</span>
-                            </div>
-                            <div class="mh-section-right">
-                                <div class="mh-installed-search-wrap">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;color:var(--text-dim);flex-shrink:0;">
-                                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                    </svg>
-                                    <input type="text" id="installed-filter-input" class="mh-installed-filter" placeholder="Filter…">
-                                </div>
-                                <div class="mh-sort-chips">
-                                    <button class="mh-sort-btn active" data-sort="name">NAME</button>
-                                    <button class="mh-sort-btn" data-sort="size">SIZE</button>
-                                    <button class="mh-sort-btn" data-sort="date">DATE</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mh-models-grid" id="installed-models-list"></div>
-                    </div>
-
-                    <!-- RIGHT: VRAM monitor + pull progress -->
-                    <div class="mh-right">
-
-                        <!-- VRAM Monitor -->
-                        <div class="mh-vram-panel liquid-glass">
-                            <div class="mh-panel-head">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mh-panel-icon">
-                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-                                </svg>
-                                <span>VRAM MONITOR</span>
-                                <button class="mh-refresh-btn" onclick="mhRefresh()" title="Refresh">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
-                                        <polyline points="23 4 23 10 17 10"></polyline>
-                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="mh-vram-body">
-                                <div class="mh-vram-ring-wrap">
-                                    <svg class="mh-vram-ring" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-                                        <circle id="vram-ring-fill" cx="50" cy="50" r="42" fill="none" stroke="var(--clr-nominal)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 0.6s ease,stroke 0.3s;"/>
-                                    </svg>
-                                    <div class="mh-vram-center">
-                                        <span class="mh-vram-pct" id="vram-ring-pct">—</span>
-                                        <span class="mh-vram-lbl">VRAM</span>
-                                    </div>
-                                </div>
-                                <div class="mh-vram-meta">
-                                    <div class="mh-vmeta-row">
-                                        <span class="mh-vmeta-label">PRIMARY</span>
-                                        <span class="mh-vmeta-val" id="active-model-name">NONE</span>
-                                    </div>
-                                    <div class="mh-vmeta-row">
-                                        <span class="mh-vmeta-label">MEMORY</span>
-                                        <span class="mh-vmeta-val" id="active-model-vram">—</span>
-                                    </div>
-                                    <div class="mh-vmeta-row">
-                                        <span class="mh-vmeta-label">EXPIRES</span>
-                                        <span class="mh-vmeta-val" id="active-model-expire">—</span>
-                                    </div>
-                                    <button class="tactical-btn sm warning" id="active-unload-btn" style="display:none;margin-top:8px;" onclick="unloadActiveModel()">UNLOAD</button>
-                                </div>
-                            </div>
-                            <!-- All running models -->
-                            <div id="mh-running-list" style="display:none;">
-                                <div class="mh-running-header">ALL LOADED</div>
-                                <div id="mh-running-rows"></div>
-                            </div>
-                        </div>
-
-                        <!-- Pull Progress -->
-                        <div id="pull-progress-panel" class="mh-progress-panel liquid-glass" style="display:none;">
-                            <div class="mh-panel-head">
-                                <div class="mh-pull-spinner"></div>
-                                <span id="progress-model-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Pulling…</span>
-                                <span id="progress-percent" style="font-family:var(--font-mono);font-size:10px;color:var(--accent-primary);flex-shrink:0;">0%</span>
-                            </div>
-                            <div id="progress-stages" class="mh-progress-stages"></div>
-                            <div style="padding:10px 16px 6px;">
-                                <div class="mh-progress-track">
-                                    <div class="mh-progress-fill" id="progress-bar"></div>
-                                    <div class="mh-progress-shimmer"></div>
-                                </div>
-                            </div>
-                            <div class="mh-progress-footer">
-                                <span id="progress-status">Initializing…</span>
-                                <span id="progress-speed">—</span>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </section>
-
-            <!-- DELETE MODAL -->
-            <div id="delete-modal" class="mh-modal-overlay" style="display:none;">
-                <div class="mh-modal liquid-glass">
-                    <div class="mh-modal-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                            <path d="M10 11v6"></path><path d="M14 11v6"></path>
-                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+            <!-- Search Panel -->
+            <div class="mh-search-panel liquid-glass">
+                <div class="mh-search-row">
+                    <div class="mh-search-field-wrap">
+                        <svg class="mh-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
+                        <input type="text" id="model-search-input" class="mh-search-input"
+                            placeholder="Search models — try 'best coding model' or 'small chat model'..."
+                            autocomplete="off" spellcheck="false">
+                        <button id="model-search-clear" class="mh-clear-btn" style="display:none;" title="Clear">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="mh-modal-content">
-                        <h3>CONFIRM DELETION</h3>
-                        <p>Permanently remove <strong id="delete-modal-name"></strong> from disk?</p>
+                </div>
+
+                <!-- Category Filters -->
+                <div class="mh-category-filters">
+                    <button class="mh-category-btn active" data-category="all">ALL</button>
+                    <button class="mh-category-btn" data-category="chat">CHAT</button>
+                    <button class="mh-category-btn" data-category="code">CODE</button>
+                    <button class="mh-category-btn" data-category="vision">VISION</button>
+                    <button class="mh-category-btn" data-category="embedding">EMBEDDING</button>
+                    <button class="mh-category-btn" data-category="uncensored">UNCENSORED</button>
+                </div>
+
+                <!-- Search Results Dropdown -->
+                <div id="mh-search-results" class="mh-search-results" style="display:none;"></div>
+            </div>
+
+            <!-- Library Models Grid -->
+            <div id="library-models-grid"></div>
+
+            <!-- Installed Models Section -->
+            <div class="mh-section-header" style="margin-top: 40px;">
+                <div class="mh-section-left">
+                    <span class="mh-section-title">INSTALLED MODELS</span>
+                    <span class="mh-section-count" id="models-count-label">00</span>
+                </div>
+                <div class="mh-section-right">
+                    <div class="mh-installed-search-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;color:var(--text-dim);flex-shrink:0;">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="installed-filter-input" class="mh-installed-filter" placeholder="Filter…">
                     </div>
-                    <div class="mh-modal-actions">
-                        <button class="tactical-btn sm" onclick="closeDeleteModal()">CANCEL</button>
-                        <button class="tactical-btn sm warning" id="delete-modal-confirm">DELETE</button>
+                    <div class="mh-sort-chips">
+                        <button class="mh-sort-btn active" data-sort="name">NAME</button>
+                        <button class="mh-sort-btn" data-sort="size">SIZE</button>
+                        <button class="mh-sort-btn" data-sort="date">DATE</button>
                     </div>
                 </div>
             </div>
+
+            <!-- Installed Models Grid -->
+            <div class="mh-models-grid" id="installed-models-list"></div>
+        </div>
+
+        <!-- RIGHT COLUMN: System Info & Progress -->
+        <div class="mh-right">
+
+            <!-- System Info -->
+            <div class="liquid-glass" style="border-radius: var(--radius-md); padding: 20px;">
+                <div class="mh-section-title" style="margin-bottom: 16px;">SYSTEM SPECS</div>
+                <div id="system-info-display">
+                    <div class="sys-info-item">
+                        <span class="sys-label">RAM</span>
+                        <span class="sys-value">Detecting...</span>
+                    </div>
+                    <div class="sys-info-item">
+                        <span class="sys-label">VRAM</span>
+                        <span class="sys-value">Detecting...</span>
+                    </div>
+                    <div class="sys-info-item">
+                        <span class="sys-label">CPU</span>
+                        <span class="sys-value">Detecting...</span>
+                    </div>
+                    <div class="sys-info-item">
+                        <span class="sys-label">GPU</span>
+                        <span class="sys-value">Detecting...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VRAM Monitor -->
+            <div class="mh-vram-panel liquid-glass">
+                <div class="mh-panel-head">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mh-panel-icon">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                    </svg>
+                    <span>VRAM MONITOR</span>
+                    <button class="mh-refresh-btn" onclick="mhRefresh()" title="Refresh">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="mh-vram-body">
+                    <div class="mh-vram-ring-wrap">
+                        <svg class="mh-vram-ring" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+                            <circle id="vram-ring-fill" cx="50" cy="50" r="42" fill="none" stroke="var(--clr-nominal)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 0.6s ease,stroke 0.3s;"/>
+                        </svg>
+                        <div class="mh-vram-center">
+                            <span class="mh-vram-pct" id="vram-ring-pct">—</span>
+                            <span class="mh-vram-lbl">VRAM</span>
+                        </div>
+                    </div>
+                    <div class="mh-vram-meta">
+                        <div class="mh-vmeta-row">
+                            <span class="mh-vmeta-label">PRIMARY</span>
+                            <span class="mh-vmeta-val" id="active-model-name">NONE</span>
+                        </div>
+                        <div class="mh-vmeta-row">
+                            <span class="mh-vmeta-label">MEMORY</span>
+                            <span class="mh-vmeta-val" id="active-model-vram">—</span>
+                        </div>
+                        <div class="mh-vmeta-row">
+                            <span class="mh-vmeta-label">EXPIRES</span>
+                            <span class="mh-vmeta-val" id="active-model-expire">—</span>
+                        </div>
+                        <button class="tactical-btn sm warning" id="active-unload-btn" style="display:none;margin-top:8px;" onclick="unloadModel(document.getElementById('active-model-name').textContent)">UNLOAD</button>
+                    </div>
+                </div>
+                <!-- All running models -->
+                <div id="mh-running-list" style="display:none;">
+                    <div class="mh-running-header">ALL LOADED</div>
+                    <div id="mh-running-rows"></div>
+                </div>
+            </div>
+
+            <!-- Pull Progress -->
+            <div id="pull-progress-panel" class="mh-progress-panel liquid-glass" style="display:none;">
+                <div class="mh-panel-head">
+                    <div class="mh-pull-spinner"></div>
+                    <span id="progress-model-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Pulling…</span>
+                    <span id="progress-percent" style="font-family:var(--font-mono);font-size:10px;color:var(--accent-primary);flex-shrink:0;">0%</span>
+                </div>
+                <div id="progress-stages" class="mh-progress-stages"></div>
+                <div style="padding:10px 16px 6px;">
+                    <div class="mh-progress-track">
+                        <div class="mh-progress-fill" id="progress-bar"></div>
+                        <div class="mh-progress-shimmer"></div>
+                    </div>
+                </div>
+                <div class="mh-progress-footer">
+                    <span id="progress-status">Initializing…</span>
+                    <span id="progress-speed">—</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Library Model Detail Modal -->
+<div id="library-model-modal" class="mh-modal-overlay" style="display:none;" onclick="if(event.target === this) closeLibraryModal()">
+    <div class="mh-library-modal liquid-glass">
+        <div class="modal-header">
+            <button class="modal-close-btn" onclick="closeLibraryModal()">✕</button>
+            <div class="modal-title-row">
+                <div class="modal-icon-large" id="modal-icon">🤖</div>
+                <div class="modal-title-info">
+                    <h2 id="modal-name">Model Name</h2>
+                    <span class="modal-author" id="modal-author">by Author</span>
+                </div>
+            </div>
+            <p class="modal-desc" id="modal-desc">Model description goes here...</p>
+            <div class="modal-badges">
+                <span class="modal-badge category" id="modal-category">CHAT</span>
+                <span class="modal-badge" id="modal-params">7B</span>
+                <span class="modal-badge" id="modal-popular">★ 90</span>
+            </div>
+        </div>
+
+        <div class="modal-body">
+            <!-- Best For -->
+            <div class="modal-section">
+                <div class="modal-section-title">BEST FOR</div>
+                <div class="modal-tags" id="modal-best-for">
+                    <span class="modal-tag">General Chat</span>
+                    <span class="modal-tag">Q&A</span>
+                </div>
+            </div>
+
+            <!-- System Requirements -->
+            <div class="modal-section">
+                <div class="modal-section-title">SYSTEM REQUIREMENTS</div>
+                <div class="modal-req-grid">
+                    <div class="modal-req-item">
+                        <span class="modal-req-label">MIN RAM</span>
+                        <span class="modal-req-value" id="modal-req-ram">8GB</span>
+                    </div>
+                    <div class="modal-req-item">
+                        <span class="modal-req-label">MIN VRAM</span>
+                        <span class="modal-req-value" id="modal-req-vram">4GB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compatibility -->
+            <div class="modal-section">
+                <div class="modal-section-title">COMPATIBILITY</div>
+                <div class="modal-compat compatible" id="modal-compat">
+                    <span class="compat-icon">✓</span>
+                    <span>Compatible with your system</span>
+                </div>
+            </div>
+
+            <!-- Available Variants -->
+            <div class="modal-section">
+                <div class="modal-section-title">AVAILABLE VARIANTS</div>
+                <div class="modal-variants" id="modal-variants">
+                    <button class="modal-variant-btn">
+                        <span class="variant-name">llama3.2:3b</span>
+                        <span class="variant-download">↓</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="mh-modal-overlay" style="display:none;" onclick="if(event.target === this) closeDeleteModal()">
+    <div class="mh-modal liquid-glass">
+        <div class="mh-modal-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+            </svg>
+        </div>
+        <div class="mh-modal-content">
+            <h3>CONFIRM DELETION</h3>
+            <p>Permanently remove <strong id="delete-modal-name"></strong> from disk?</p>
+        </div>
+        <div class="mh-modal-actions">
+            <button class="tactical-btn sm" onclick="closeDeleteModal()">CANCEL</button>
+            <button class="tactical-btn sm warning" id="delete-modal-confirm">DELETE</button>
+        </div>
+    </div>
+</div>
             
             <!-- VIEW 3: CHAT HUB & DOCUMENT VIEWER -->
             <section id="view-chat" class="view" data-active="false">
@@ -913,5 +1002,6 @@
     </footer>
 
     <script src="app.js"></script>
+    <script src="app-models-enhanced.js"></script>
 </body>
 </html>
