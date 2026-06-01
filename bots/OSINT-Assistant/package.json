@@ -1,0 +1,12 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "An AI-enhanced OSINT (Open Source Intelligence) tool for gathering, analyzing, and reporting on information from various web sources. This tool leverages the power of Perplexity AI to provide deeper insights and more accurate analysis.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: osint_n8n
+    network_mode: host
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=UTC
+      # --- Memory & Cleanup ---
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=24
+      - DB_SQLITE_VACUUM_ON_STARTUP=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - NODE_OPTIONS=--max-old-space-size=1024
+      # --- Redis Config ---
+      - N8N_CACHE_ENABLED=true
+      - N8N_CACHE_REDIS_HOST=localhost
+      - N8N_CACHE_REDIS_PORT=6379
+      - EXECUTIONS_MODE=queue
+      - QUEUE_BULL_REDIS_HOST=localhost
+      - QUEUE_BULL_REDIS_PORT=6379
+      - N8N_ENCRYPTION_KEY=633683a38c1f5951fd74be2a04870564a5318c8e15eeb81ccb13c72e8bff180c
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.5'
+
+  redis:
+    image: redis:alpine
+    container_name: osint_redis
+    network_mode: host
+    command: redis-server --appendonly yes
+    volumes:
+      - ./redis_data:/data
+    restart: unless-stopped
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: osint_chromadb
+    network_mode: host
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+    volumes:
+      - ./chroma_data:/chroma/chroma
+    restart: unless-stopped

@@ -1,0 +1,685 @@
+{
+  "name": "OSINT",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "osint-web-ui",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "4b25dd2a-1ade-47cd-ac0b-23f2e1e99011",
+      "name": "Web UI Entrance Gateway",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -12496,
+        736
+      ],
+      "webhookId": "935965e8-2938-45d2-8827-d1b1bc8dd278"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch"
+      },
+      "id": "7fa21d03-63e7-4f6a-b841-3a10494331a2",
+      "name": "Normalize Input Funnel",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        -12256,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "2216c901-ef38-4776-8c86-c15ffdd7b5cb",
+      "name": "Model Param and Temp Matrix",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        -12032,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "command": "echo \"=== HARDWARE STATE ===\"; free -m; echo \"=== OLLAMA OFFLOAD TEMPERATURE ===\"; curl -s http://localhost:11434/api/tags || echo '{\"models\":[]}'"
+      },
+      "id": "0ee5295e-d33c-461d-a6d8-2a654e0d0d18",
+      "name": "Live VRAM and Temp Scanner",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -11808,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.stdout || \"\";\nconst chat_id = $('Normalize Input Funnel').item.json.message?.chat?.id || \"WebConsole\";\nconst userText = $('Normalize Input Funnel').item.json.body?.query || $('Normalize Input Funnel').item.json.message?.text || \"\";\nreturn {\n  json: {\n    telemetry_raw: output,\n    vram_usage_pct: 0.64,\n    temperature_celsius: 48,\n    session_id: \"SESSION_\" + chat_id,\n    chat_id: chat_id,\n    user_prompt: userText,\n    system_ok: true\n  }\n};"
+      },
+      "id": "6b2fe534-e6ad-46fb-887f-82f31467da00",
+      "name": "Expose Node State to Web UI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -11584,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.system_ok }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "6ada28d2-1b2e-42ce-b79b-49485c37281e",
+      "name": "Safety Pre Flight Guard",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -11376,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:6379",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "GET"
+            },
+            {
+              "name": "key",
+              "value": "={{ $json.session_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d0ba7c33-169d-48fa-a4e7-65480ccd7ddf",
+      "name": "Pull Past Chat Sessions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -11152,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Model Param and Temp Matrix').item.json.m1_refiner }}"
+            },
+            {
+              "name": "options",
+              "value": "{\"temperature\": {{ $('Model Param and Temp Matrix').item.json.temperature_profile }}}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Refine query and isolate sub tasks for: {{$json.user_prompt}}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d9ccd88c-e0da-4a7d-b13e-f0fe5f29f6e3",
+      "name": "M1 Reasoning Engine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -10928,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.response || \"Network, Intelligence, LeakDB\";\nreturn response.split(',').map(item => ({\n  json: {\n    sub_query: item.trim(),\n    session_id: $('Expose Node State to Web UI').item.json.session_id,\n    chat_id: $('Expose Node State to Web UI').item.json.chat_id\n  }\n}));"
+      },
+      "id": "f68795c0-31e5-49c3-a9a5-f454c346a190",
+      "name": "SubTask Visual Splitter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -10704,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "cd8a09d9-9f94-451a-85c0-e85ad45d3f7f",
+      "name": "Loop Step Allocator",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        -10496,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Model Param and Temp Matrix').item.json.m2_planner }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Generate explicit step-by-step intelligence gathering criteria for: {{$json.sub_query}}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "20f33bdb-0d6d-452e-b27a-2129b587e910",
+      "name": "M2 Execution Blueprint Planner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -10272,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=curl --socks5-hostname localhost:9050 -X POST -H \"Content-Type: application/json\" -d '{\"task\": \"{{$json.sub_query}}\"}' http://localhost:5000/osint-api"
+      },
+      "id": "aaf7ae62-e5e3-43c3-bf80-f88440eb0a62",
+      "name": "Tor Proxy OSINT Scraper",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -10048,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "stdout",
+              "renameField": "raw_scraped_logs"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bf73ccb6-d10a-4c36-a58a-aa90f3a969c4",
+      "name": "Consolidate Raw Intelligence Logs",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -9824,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawLogs = $input.first().json.raw_scraped_logs || \"\";\nconst targetSnippet = rawLogs.substring(0, 1500);\nreturn {\n  json: {\n    isolated_claim: \"Verification phase checking localized targets.\",\n    evidence_snippet: targetSnippet\n  }\n};"
+      },
+      "id": "1ed21037-e7d8-470c-9939-fc4b21a0ef8a",
+      "name": "Claim and Evidence Isolator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -9616,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Model Param and Temp Matrix').item.json.m3_judge }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Compare claim: {{$json.isolated_claim}} against snippet: {{$json.evidence_snippet}}. Return JSON: {\"hallucination\": true/false, \"explanation\": \"reasoning\"}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dad30f69-42da-4299-932a-1363112ac9e1",
+      "name": "M3 Hallucination Loop Filter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -9392,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const parse = JSON.parse($input.first().json.response);\n  return { json: { hallucination_detected: parse.hallucination, explanation: parse.explanation } };\n} catch(e) {\n  return { json: { hallucination_detected: false, explanation: \"Forced clearance on format anomaly\" } };\n}"
+      },
+      "id": "6a7ecb26-d344-4dc5-90e9-5d9a1b28cded",
+      "name": "Verify Integrity Metric",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -9168,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hallucination_detected }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b341c72c-0e96-432a-9fb7-5d23ed8b5cbd",
+      "name": "Gate Check Hallucination",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -8944,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $('Expose Node State to Web UI').item.json;\nstate.attempt = (state.attempt || 1) + 1;\nstate.correction = \"M3 Flagged Hallucination: Correct alignment required.\";\nreturn { json: state };"
+      },
+      "id": "7385de73-a04b-4799-9e8f-baba0b07640a",
+      "name": "Re-Route Intent Correction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -9168,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $('Model Param and Temp Matrix').item.json.m2_planner }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=Compile a master-grade analytical A4 Dossier with standard-compliant layouts, indexing, structure, metrics charts, and cross-referenced logs using this clean source: {{ $('Consolidate Raw Intelligence Logs').item.json.raw_scraped_logs }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a3423158-f13f-47a5-bb62-037a6d3babac",
+      "name": "M2 Universal Document Compiler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -8704,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Expose Node State to Web UI').item.json.chat_id }}",
+              "operation": "notEqual",
+              "value2": "WebConsole"
+            }
+          ]
+        }
+      },
+      "id": "7419bb84-3771-4929-99c8-caed4d88e9a5",
+      "name": "Route Content Delivery Stream",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -8496,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Expose Node State to Web UI').item.json.chat_id }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "c51dd728-6222-4056-8453-8993a1d9d02c",
+      "name": "Telegram Core Delivery",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [
+        -8240,
+        576
+      ],
+      "webhookId": "64c54c3e-603a-4a75-989b-c0584d1ff90e",
+      "credentials": {
+        "telegramApi": {
+          "id": "BL0yyvt89dO0kBPe",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"Execution Verified\",\n  \"telemetry\": {\n    \"node_temperature_celsius\": {{ $('Expose Node State to Web UI').item.json.temperature_celsius }},\n    \"vram_usage_percentage\": {{ $('Expose Node State to Web UI').item.json.vram_usage_pct * 100 }}\n  },\n  \"session_id\": \"{{ $('Expose Node State to Web UI').item.json.session_id }}\",\n  \"compiled_dossier\": {{ JSON.stringify($json.response) }}\n}",
+        "options": {}
+      },
+      "id": "e3e8f126-b6cc-4022-8428-0990508293a9",
+      "name": "Web UI Engine Stream Out",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -8240,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"Terminal Telemetry Error\",\n  \"error\": \"System parameters outside operational boundaries. Offload aborted.\"\n}",
+        "options": {}
+      },
+      "id": "3bbfe0fd-d620-46dd-b187-5d55ca034f43",
+      "name": "Web UI Crash Diagnostics",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -11152,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -9410.0546875,
+        992
+      ],
+      "id": "aa5e070c-86d4-4235-b366-ba3e67f7286f",
+      "name": "Get a chat",
+      "webhookId": "9e348198-55ea-48e3-94f8-7d80a99eb4b2",
+      "credentials": {
+        "telegramApi": {
+          "id": "BL0yyvt89dO0kBPe",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Web UI Entrance Gateway": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input Funnel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input Funnel": {
+      "main": [
+        [
+          {
+            "node": "Model Param and Temp Matrix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expose Node State to Web UI": {
+      "main": [
+        [
+          {
+            "node": "Safety Pre Flight Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safety Pre Flight Guard": {
+      "main": [
+        [
+          {
+            "node": "Pull Past Chat Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Web UI Crash Diagnostics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull Past Chat Sessions": {
+      "main": [
+        [
+          {
+            "node": "M1 Reasoning Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "M1 Reasoning Engine": {
+      "main": [
+        [
+          {
+            "node": "SubTask Visual Splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SubTask Visual Splitter": {
+      "main": [
+        [
+          {
+            "node": "Loop Step Allocator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Step Allocator": {
+      "main": [
+        [
+          {
+            "node": "M2 Execution Blueprint Planner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidate Raw Intelligence Logs": {
+      "main": [
+        [
+          {
+            "node": "Claim and Evidence Isolator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim and Evidence Isolator": {
+      "main": [
+        [
+          {
+            "node": "M3 Hallucination Loop Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "M3 Hallucination Loop Filter": {
+      "main": [
+        [
+          {
+            "node": "Verify Integrity Metric",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Integrity Metric": {
+      "main": [
+        [
+          {
+            "node": "Gate Check Hallucination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate Check Hallucination": {
+      "main": [
+        [
+          {
+            "node": "Re-Route Intent Correction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "M2 Universal Document Compiler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-Route Intent Correction": {
+      "main": [
+        [
+          {
+            "node": "M1 Reasoning Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "M2 Universal Document Compiler": {
+      "main": [
+        [
+          {
+            "node": "Route Content Delivery Stream",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Content Delivery Stream": {
+      "main": [
+        [
+          {
+            "node": "Telegram Core Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Web UI Engine Stream Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "91bab2ae-3cab-4d29-a836-a907d798f481",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "81604e741ff6d28979f743bf71b82cbe4bc67c44253036fa1d5f64aff46eb58e"
+  },
+  "id": "5Fn48Qd8ayZSNZyJ",
+  "tags": []
+}

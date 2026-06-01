@@ -1,0 +1,7 @@
+.venv/
+.vscode/
+__pycache__/
+*.log
+chroma_data/
+n8n_data/
+redis_data/

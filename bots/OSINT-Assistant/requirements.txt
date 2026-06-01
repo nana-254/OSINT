@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+rich
+pydantic
+openai
+python-dotenv
+flask
+flask-cors 

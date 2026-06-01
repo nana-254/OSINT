@@ -1,0 +1,1 @@
+// This file will not be used as we're creating a server-side HTML app instead 

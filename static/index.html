@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TACTICAL OSINT | v3.1.2 State Engine</title>
+    <!-- Elite Typography Stack -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="tactical-theme">
+    <!-- SVG FILTERS FOR LIQUID GLASS -->
+    <svg style="display:none">
+        <filter id="liquid-refraction">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="2" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        
+        <!-- Circular Gauge Template -->
+        <symbol id="circular-gauge-symbol" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8" stroke-dasharray="283" stroke-dashoffset="283" stroke-linecap="round" />
+        </symbol>
+    </svg>
+
+    <div class="app-shell" id="app-shell">
+        <!-- [NAV SIDEBAR] Expanded Liquid Glass Rail -->
+        <nav class="sidebar liquid-glass" id="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                </div>
+                <span class="brand-name">TACTICAL OSINT</span>
+            </div>
+            
+            <div class="nav-group">
+                <button class="nav-item active" data-target="diagnostics" title="System Diagnostics">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span class="nav-label">DIAGNOSTICS</span>
+                </button>
+                <button class="nav-item" data-target="osint" title="OSINT Engine">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span class="nav-label">ORCHESTRATION</span>
+                </button>
+                <button class="nav-item" data-target="chat" title="Intelligence Hub">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        <line x1="8" y1="9" x2="16" y2="9"></line>
+                        <line x1="8" y1="13" x2="14" y2="13"></line>
+                    </svg>
+                    <span class="nav-label">INTEL HUB</span>
+                </button>
+                <button class="nav-item" data-target="models" title="Ollama Model Hub">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                        <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                        <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                    </svg>
+                    <span class="nav-label">OLLAMA MODELS</span>
+                </button>
+                <button class="nav-item" data-target="settings" title="System Settings">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <span class="nav-label">SETTINGS</span>
+                </button>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator online"></div>
+                <span class="status-text">SYSTEM SECURE</span>
+            </div>
+            
+            <!-- Sidebar Collapse Toggle -->
+            <button id="sidebar-toggle" class="sidebar-toggle-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+        </nav>
+        
+        <!-- [CORE WORKSPACE] -->
+        <main class="workspace">
+            
+            <!-- VIEW 1: SYSTEM DIAGNOSTICS -->
+            <section id="view-diagnostics" class="view" data-active="true">
+                <header class="view-header">
+                    <div class="header-main">
+                        <span class="view-eyebrow">SYSTEM TELEMETRY</span>
+                        <h1>Diagnostics & Engine Control</h1>
+                    </div>
+                    <div class="header-stats">
+                        <div class="mini-stat">
+                            <span class="stat-label">UPTIME</span>
+                            <span class="stat-value">142:08:12</span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="stat-label">LOAD</span>
+                            <span class="stat-value">0.42</span>
+                        </div>
+                    </div>
+                </header>
+                
+                <div class="diagnostics-grid">
+                    <!-- Circular Gauges Panel -->
+                    <div class="tactical-card liquid-glass" id="card-telemetry">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Core Resource Distribution</span>
+                                <span class="card-id">CRD_01</span>
+                            </div>
+                            <div class="gauge-cluster">
+                                <div class="gauge-item">
+                                    <div class="gauge-visual">
+                                        <svg class="circular-gauge" viewBox="0 0 100 100" id="vram-gauge">
+                                            <circle class="gauge-track" cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+                                            <circle class="gauge-ring" cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
+                                        </svg>
+                                        <span id="vram-value" class="gauge-label">64%</span>
+                                    </div>
+                                    <span class="gauge-name">VRAM</span>
+                                </div>
+                                <div class="gauge-item">
+                                    <div class="gauge-visual">
+                                        <svg class="circular-gauge" viewBox="0 0 100 100" id="ram-gauge">
+                                            <circle class="gauge-track" cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+                                            <circle class="gauge-ring" cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
+                                        </svg>
+                                        <span id="ram-value" class="gauge-label">42%</span>
+                                    </div>
+                                    <span class="gauge-name">RAM</span>
+                                </div>
+                                <div class="gauge-item">
+                                    <div class="gauge-visual">
+                                        <svg class="circular-gauge" viewBox="0 0 100 100" id="temp-gauge">
+                                            <circle class="gauge-track" cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+                                            <circle class="gauge-ring" cx="50" cy="50" r="42" fill="none" stroke="var(--clr-warning)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
+                                        </svg>
+                                        <span id="temp-value" class="gauge-label">48°C</span>
+                                    </div>
+                                    <span class="gauge-name">TEMP</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Network Pulse Panel -->
+                    <div class="tactical-card liquid-glass" id="card-network">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Tor Pipeline Exchange</span>
+                                <span class="card-id">NET_SEC</span>
+                            </div>
+                            <div class="network-viz">
+                                <div class="nodes-row">
+                                    <div class="node-pip secure" title="Entry Node: DE"></div>
+                                    <div class="node-line active"></div>
+                                    <div class="node-pip secure" title="Middle Node: NL"></div>
+                                    <div class="node-line active"></div>
+                                    <div class="node-pip secure" title="Exit Node: IS"></div>
+                                </div>
+                                <div class="pulse-sparkline" id="network-pulse">
+                                    <!-- Dynamic sparkline SVG will be injected here -->
+                                </div>
+                            </div>
+                            <div class="readout-meta">
+                                <span>Throughput: 1.2 MB/s</span>
+                                <span>Latency: 42ms</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Synthesis Panel -->
+                    <div class="tactical-card liquid-glass prediction-panel">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Predictive Engine State</span>
+                                <span class="card-id">AI_SYNS</span>
+                            </div>
+                            <div class="synthesis-content">
+                                <p class="synthesis-text">
+                                    <span class="typing-cursor">❯</span> System under nominal load. 24 VRAM layers offloaded. 
+                                    Tor circuit stable via 3 hops. Predictive analysis suggests 
+                                    resource headroom for 4 additional OSINT threads.
+                                </p>
+                            </div>
+                            <div class="action-row">
+                                <button class="tactical-btn sm">OPTIMIZE CACHE</button>
+                                <button class="tactical-btn sm warning">FLUSH PROXIES</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collapsible Terminal -->
+                <div class="terminal-deck liquid-glass" id="main-terminal">
+                    <div class="deck-header">
+                        <div class="deck-title">
+                            <svg class="deck-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="4 17 10 11 4 5"></polyline>
+                                <line x1="12" y1="19" x2="20" y2="19"></line>
+                            </svg>
+                            <span>CORE_LOG_STREAM_v3.2.0</span>
+                        </div>
+                        <div class="deck-actions">
+                            <button id="terminal-collapse-btn" class="icon-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="console-output" class="terminal-body">
+                        <div class="log-entry">
+                            <span class="log-ts">[10:42:01]</span>
+                            <span class="log-msg">Kernel initialized. Loading llama3.1:8b-abliterated...</span>
+                            <span class="log-tag success">OK</span>
+                        </div>
+                        <div class="prompt-line">
+                            <span class="prompt-symbol">❯</span>
+                            <span class="cursor"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- VIEW 2: OSINT ORCHESTRATION -->
+            <section id="view-osint" class="view" data-active="false">
+                <header class="view-header">
+                    <div class="header-main">
+                        <span class="view-eyebrow">BOT FLEET COMMAND</span>
+                        <h1>Pipeline Control & Auditing</h1>
+                    </div>
+                </header>
+                
+                <div class="osint-dashboard-grid">
+                    <!-- Multi-Bot Fleet Grid -->
+                    <div class="bot-fleet-panel liquid-glass">
+                        <div class="panel-header">
+                            <span>ACTIVE BOT FLEET</span>
+                            <span class="panel-count">04 UNITS</span>
+                        </div>
+                        <div class="bot-grid" id="bot-fleet-grid">
+                            <div class="bot-card active">
+                                <div class="bot-icon scraper"></div>
+                                <div class="bot-info">
+                                    <span class="bot-name">SC-LEAK-01</span>
+                                    <span class="bot-status">SCRAPING_TOR</span>
+                                </div>
+                                <div class="bot-load-mini">
+                                    <div class="load-bar" style="width: 72%"></div>
+                                </div>
+                            </div>
+                            <div class="bot-card idle">
+                                <div class="bot-icon analyzer"></div>
+                                <div class="bot-info">
+                                    <span class="bot-name">NLP-CORE-A</span>
+                                    <span class="bot-status">STANDBY</span>
+                                </div>
+                            </div>
+                            <div class="bot-card warning">
+                                <div class="bot-icon image"></div>
+                                <div class="bot-info">
+                                    <span class="bot-name">IMG-FRNSC</span>
+                                    <span class="bot-status">RATE_LIMITED</span>
+                                </div>
+                            </div>
+                            <div class="bot-card active">
+                                <div class="bot-icon judge"></div>
+                                <div class="bot-info">
+                                    <span class="bot-name">M3-JUDGE</span>
+                                    <span class="bot-status">AUDITING</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Provenance Map -->
+                    <div class="provenance-panel liquid-glass">
+                        <div class="panel-header">
+                            <span>INTEL PROVENANCE LINEAGE</span>
+                            <span class="status-chip secure">VERIFIED</span>
+                        </div>
+                        <div class="provenance-viz" id="provenance-map">
+                            <!-- SVG Flow Map Placeholder -->
+                            <div class="flow-placeholder">
+                                <div class="flow-node">SOURCE</div>
+                                <div class="flow-arrow">❯</div>
+                                <div class="flow-node active">BOT</div>
+                                <div class="flow-arrow">❯</div>
+                                <div class="flow-node">DOSSIER</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- M3 Judge Auditing Block -->
+                <div class="judge-deck liquid-glass">
+                    <div class="deck-header">
+                        <div class="deck-title">M3 SKEPTICAL JUDGE | EVIDENCE AUDIT</div>
+                    </div>
+                    <div class="judge-grid">
+                        <div class="judge-cell">
+                            <label>CLAIM UNDER ANALYSIS</label>
+                            <div id="judge-claim" class="cell-value">Target registration records match 2022 dataset core signature.</div>
+                        </div>
+                        <div class="judge-cell">
+                            <label>EVIDENCE SNIPPET</label>
+                            <div id="judge-evidence" class="cell-snippet">"...db_dump_2022; system_id: target_record_alpha..."</div>
+                        </div>
+                        <div class="judge-cell">
+                            <label>VERIFICATION METRIC</label>
+                            <div id="judge-metric" class="cell-badge success">
+                                <span class="badge-label">PASSED</span>
+                                <span class="badge-meta">Confidence Score: 0.982</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 4: SETTINGS HUB -->
+            <section id="view-settings" class="view" data-active="false">
+                <header class="view-header">
+                    <div class="header-main">
+                        <span class="view-eyebrow">SYSTEM CONFIG</span>
+                        <h1>Operational Settings</h1>
+                    </div>
+                </header>
+
+                <div class="settings-grid">
+                    <!-- Theme Selector -->
+                    <div class="tactical-card liquid-glass">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Visual Theme Lab</span>
+                            </div>
+                            <div class="theme-grid">
+                                <button class="theme-btn active" data-theme="CYAN_PHASE">
+                                    <div class="theme-preview cyan"></div>
+                                    <span>CYAN_PHASE</span>
+                                </button>
+                                <button class="theme-btn" data-theme="AMBER_ALERT">
+                                    <div class="theme-preview amber"></div>
+                                    <span>AMBER_ALERT</span>
+                                </button>
+                                <button class="theme-btn" data-theme="NEON_ORCHID">
+                                    <div class="theme-preview orchid"></div>
+                                    <span>NEON_ORCHID</span>
+                                </button>
+                                <button class="theme-btn" data-theme="EMERALD_STEALTH">
+                                    <div class="theme-preview emerald"></div>
+                                    <span>EMERALD_STEALTH</span>
+                                </button>
+                                <button class="theme-btn" data-theme="FROSTED_DAY">
+                                    <div class="theme-preview light"></div>
+                                    <span>FROSTED_DAY</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Model Configuration -->
+                    <div class="tactical-card liquid-glass">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Engine Model Matrix</span>
+                                <span class="card-id">LLM_CFG</span>
+                            </div>
+                            <div class="settings-list">
+                                <div class="setting-item">
+                                    <label>M1_REFINER</label>
+                                    <select class="tactical-select" id="cfg-m1">
+                                        <option>llama3.2:3b-instruct-uncensored</option>
+                                        <option>phi3.5:mini</option>
+                                        <option>mistral:7b</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>M2_PLANNER</label>
+                                    <select class="tactical-select" id="cfg-m2">
+                                        <option>llama3.1:8b-abliterated</option>
+                                        <option>llama3.2:3b-instruct-uncensored</option>
+                                        <option>mixtral:8x7b</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>M3_JUDGE</label>
+                                    <select class="tactical-select" id="cfg-m3">
+                                        <option>phi3.5:mini</option>
+                                        <option>llama3.2:3b-instruct-uncensored</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>TEMPERATURE_PROFILE</label>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="0" max="1" step="0.05" value="0.3" id="cfg-temp" oninput="document.getElementById('val-temp').textContent=this.value">
+                                        <span class="slider-val" id="val-temp">0.3</span>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label>VRAM_OFFLOAD_LIMIT</label>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="0" max="1" step="0.05" value="0.85" id="cfg-vram" oninput="document.getElementById('val-vram').textContent=this.value">
+                                        <span class="slider-val" id="val-vram">0.85</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Endpoint Configuration -->
+                    <div class="tactical-card liquid-glass">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Node Endpoint Matrix</span>
+                                <span class="card-id">NET_CFG</span>
+                            </div>
+                            <div class="settings-list">
+                                <div class="setting-item">
+                                    <label>OLLAMA_API</label>
+                                    <input type="text" class="tactical-input" value="http://localhost:11434" placeholder="http://localhost:11434">
+                                </div>
+                                <div class="setting-item">
+                                    <label>N8N_WEBHOOK</label>
+                                    <input type="text" class="tactical-input" value="http://localhost:5678/webhook/osint-web-ui" placeholder="Webhook URL">
+                                </div>
+                                <div class="setting-item">
+                                    <label>REDIS_SESSION_STORE</label>
+                                    <input type="text" class="tactical-input" value="http://localhost:6379" placeholder="Redis URL">
+                                </div>
+                                <div class="setting-item">
+                                    <label>OSINT_API</label>
+                                    <input type="text" class="tactical-input" value="http://localhost:5000/osint-api" placeholder="OSINT API URL">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tor & Proxy -->
+                    <div class="tactical-card liquid-glass">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Tor & Proxy Config</span>
+                                <span class="card-id">TOR_CFG</span>
+                            </div>
+                            <div class="settings-list">
+                                <div class="setting-item">
+                                    <label>SOCKS5_PROXY</label>
+                                    <input type="text" class="tactical-input" value="localhost:9050" placeholder="host:port">
+                                </div>
+                                <div class="setting-item">
+                                    <label>TOR_AUTO_RENEW</label>
+                                    <label class="toggle-wrap">
+                                        <input type="checkbox" checked id="cfg-tor-renew">
+                                        <span class="toggle-track"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item">
+                                    <label>RENEW_INTERVAL (min)</label>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="5" max="60" step="5" value="15" id="cfg-tor-interval" oninput="document.getElementById('val-tor').textContent=this.value+'m'">
+                                        <span class="slider-val" id="val-tor">15m</span>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label>HOP_COUNT</label>
+                                    <select class="tactical-select">
+                                        <option>3 (Standard)</option>
+                                        <option>5 (Stealth)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Telegram Integration -->
+                    <div class="tactical-card liquid-glass">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Telegram Gateway</span>
+                                <span class="card-id">TG_CFG</span>
+                            </div>
+                            <div class="settings-list">
+                                <div class="setting-item">
+                                    <label>BOT_TOKEN</label>
+                                    <input type="password" class="tactical-input" placeholder="••••••••••••••••">
+                                </div>
+                                <div class="setting-item">
+                                    <label>CHAT_ID</label>
+                                    <input type="text" class="tactical-input" placeholder="@handle or numeric ID">
+                                </div>
+                                <div class="setting-item">
+                                    <label>PARSE_MODE</label>
+                                    <select class="tactical-select">
+                                        <option>Markdown</option>
+                                        <option>HTML</option>
+                                        <option>Plain</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>DELIVERY_ENABLED</label>
+                                    <label class="toggle-wrap">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-track"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Session & Security -->
+                    <div class="tactical-card liquid-glass">
+                        <div class="card-inner">
+                            <div class="card-head">
+                                <span class="card-title">Session & Security</span>
+                                <span class="card-id">SEC_CFG</span>
+                            </div>
+                            <div class="settings-list">
+                                <div class="setting-item">
+                                    <label>SESSION_TTL (hrs)</label>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="1" max="72" step="1" value="24" oninput="document.getElementById('val-ttl').textContent=this.value+'h'">
+                                        <span class="slider-val" id="val-ttl">24h</span>
+                                    </div>
+                                </div>
+                                <div class="setting-item">
+                                    <label>HALLUCINATION_GUARD</label>
+                                    <label class="toggle-wrap">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-track"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item">
+                                    <label>MAX_RETRY_LOOPS</label>
+                                    <select class="tactical-select">
+                                        <option>3</option><option>5</option><option>10</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label>PREFLIGHT_GUARD</label>
+                                    <label class="toggle-wrap">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-track"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item" style="padding-top:8px;">
+                                    <button class="tactical-btn sm" onclick="logToConsole('Config saved to session store', 'success')">SAVE CONFIG</button>
+                                    <button class="tactical-btn sm warning" onclick="logToConsole('All sessions flushed', 'warn')">FLUSH SESSIONS</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- VIEW 5: OLLAMA MODELS -->
+            <section id="view-models" class="view" data-active="false">
+                <header class="view-header">
+                    <div class="header-main">
+                        <span class="view-eyebrow">LOCAL MODEL COMMAND CENTER</span>
+                        <h1>Ollama Model Hub</h1>
+                    </div>
+                    <div class="header-stats">
+                        <div class="mini-stat">
+                            <span class="stat-label">INSTALLED</span>
+                            <span class="stat-value" id="hdr-model-count">—</span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="stat-label">DISK USAGE</span>
+                            <span class="stat-value" id="hdr-disk-usage">—</span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="stat-label">LOADED</span>
+                            <span class="stat-value" id="hdr-loaded-count">0</span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="stat-label">VRAM</span>
+                            <span class="stat-value" id="hdr-vram-state">IDLE</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Toast -->
+                <div id="mh-toast" class="mh-toast" style="display:none;"></div>
+
+                <!-- Offline Banner -->
+                <div id="ollama-offline-banner" class="offline-banner" style="display:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <div>
+                        <strong>OLLAMA OFFLINE</strong> — Cannot reach <code>http://localhost:11434</code>
+                        <button class="tactical-btn sm" style="margin-left:12px;" onclick="mhInit()">RETRY</button>
+                    </div>
+                </div>
+
+                <!-- MAIN LAYOUT: two columns -->
+                <div class="mh-layout">
+
+                    <!-- LEFT: Search + Library Browse + Installed -->
+                    <div class="mh-left">
+
+                        <!-- Search bar -->
+                        <div class="mh-search-panel liquid-glass">
+                            <div class="mh-search-row">
+                                <div class="mh-search-field-wrap">
+                                    <svg class="mh-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                    <input type="text" id="model-search-input" class="mh-search-input"
+                                        placeholder="Search any model — e.g. llama3.2, deepseek-r1, qwen2.5-coder…"
+                                        autocomplete="off" spellcheck="false">
+                                    <button id="model-search-clear" class="mh-clear-btn" style="display:none;" title="Clear">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Live results dropdown -->
+                            <div id="mh-search-results" class="mh-search-results" style="display:none;"></div>
+                        </div>
+
+                        <!-- Model detail drawer (shown when a library model is selected) -->
+                        <div id="mh-model-drawer" class="mh-model-drawer liquid-glass" style="display:none;">
+                            <div class="mh-drawer-header">
+                                <div class="mh-drawer-title-row">
+                                    <span class="mh-drawer-icon" id="drawer-icon">🤖</span>
+                                    <div>
+                                        <span class="mh-drawer-name" id="drawer-name">—</span>
+                                        <span class="mh-drawer-family" id="drawer-family">—</span>
+                                    </div>
+                                    <button class="mh-drawer-close" onclick="closeModelDrawer()">✕</button>
+                                </div>
+                                <p class="mh-drawer-desc" id="drawer-desc">—</p>
+                            </div>
+
+                            <!-- Variants / Tags -->
+                            <div class="mh-drawer-section">
+                                <div class="mh-drawer-section-title">
+                                    VARIANTS
+                                    <span class="mh-drawer-hint">tap to pull</span>
+                                </div>
+                                <div id="drawer-variants" class="mh-variants-grid">
+                                    <div class="mh-variant-loading">Loading variants…</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Installed models -->
+                        <div class="mh-section-header">
+                            <div class="mh-section-left">
+                                <span class="mh-section-title">INSTALLED</span>
+                                <span class="mh-section-count" id="models-count-label">00</span>
+                            </div>
+                            <div class="mh-section-right">
+                                <div class="mh-installed-search-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;color:var(--text-dim);flex-shrink:0;">
+                                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                    <input type="text" id="installed-filter-input" class="mh-installed-filter" placeholder="Filter…">
+                                </div>
+                                <div class="mh-sort-chips">
+                                    <button class="mh-sort-btn active" data-sort="name">NAME</button>
+                                    <button class="mh-sort-btn" data-sort="size">SIZE</button>
+                                    <button class="mh-sort-btn" data-sort="date">DATE</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mh-models-grid" id="installed-models-list"></div>
+                    </div>
+
+                    <!-- RIGHT: VRAM monitor + pull progress -->
+                    <div class="mh-right">
+
+                        <!-- VRAM Monitor -->
+                        <div class="mh-vram-panel liquid-glass">
+                            <div class="mh-panel-head">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mh-panel-icon">
+                                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                                </svg>
+                                <span>VRAM MONITOR</span>
+                                <button class="mh-refresh-btn" onclick="mhRefresh()" title="Refresh">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="mh-vram-body">
+                                <div class="mh-vram-ring-wrap">
+                                    <svg class="mh-vram-ring" viewBox="0 0 100 100">
+                                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+                                        <circle id="vram-ring-fill" cx="50" cy="50" r="42" fill="none" stroke="var(--clr-nominal)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 0.6s ease,stroke 0.3s;"/>
+                                    </svg>
+                                    <div class="mh-vram-center">
+                                        <span class="mh-vram-pct" id="vram-ring-pct">—</span>
+                                        <span class="mh-vram-lbl">VRAM</span>
+                                    </div>
+                                </div>
+                                <div class="mh-vram-meta">
+                                    <div class="mh-vmeta-row">
+                                        <span class="mh-vmeta-label">PRIMARY</span>
+                                        <span class="mh-vmeta-val" id="active-model-name">NONE</span>
+                                    </div>
+                                    <div class="mh-vmeta-row">
+                                        <span class="mh-vmeta-label">MEMORY</span>
+                                        <span class="mh-vmeta-val" id="active-model-vram">—</span>
+                                    </div>
+                                    <div class="mh-vmeta-row">
+                                        <span class="mh-vmeta-label">EXPIRES</span>
+                                        <span class="mh-vmeta-val" id="active-model-expire">—</span>
+                                    </div>
+                                    <button class="tactical-btn sm warning" id="active-unload-btn" style="display:none;margin-top:8px;" onclick="unloadActiveModel()">UNLOAD</button>
+                                </div>
+                            </div>
+                            <!-- All running models -->
+                            <div id="mh-running-list" style="display:none;">
+                                <div class="mh-running-header">ALL LOADED</div>
+                                <div id="mh-running-rows"></div>
+                            </div>
+                        </div>
+
+                        <!-- Pull Progress -->
+                        <div id="pull-progress-panel" class="mh-progress-panel liquid-glass" style="display:none;">
+                            <div class="mh-panel-head">
+                                <div class="mh-pull-spinner"></div>
+                                <span id="progress-model-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Pulling…</span>
+                                <span id="progress-percent" style="font-family:var(--font-mono);font-size:10px;color:var(--accent-primary);flex-shrink:0;">0%</span>
+                            </div>
+                            <div id="progress-stages" class="mh-progress-stages"></div>
+                            <div style="padding:10px 16px 6px;">
+                                <div class="mh-progress-track">
+                                    <div class="mh-progress-fill" id="progress-bar"></div>
+                                    <div class="mh-progress-shimmer"></div>
+                                </div>
+                            </div>
+                            <div class="mh-progress-footer">
+                                <span id="progress-status">Initializing…</span>
+                                <span id="progress-speed">—</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- DELETE MODAL -->
+            <div id="delete-modal" class="mh-modal-overlay" style="display:none;">
+                <div class="mh-modal liquid-glass">
+                    <div class="mh-modal-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                            <path d="M10 11v6"></path><path d="M14 11v6"></path>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                        </svg>
+                    </div>
+                    <div class="mh-modal-content">
+                        <h3>CONFIRM DELETION</h3>
+                        <p>Permanently remove <strong id="delete-modal-name"></strong> from disk?</p>
+                    </div>
+                    <div class="mh-modal-actions">
+                        <button class="tactical-btn sm" onclick="closeDeleteModal()">CANCEL</button>
+                        <button class="tactical-btn sm warning" id="delete-modal-confirm">DELETE</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- VIEW 3: CHAT HUB & DOCUMENT VIEWER -->
+            <section id="view-chat" class="view" data-active="false">
+                <div class="chat-workspace">
+                    <!-- Session Explorer (Folder Style) -->
+                    <aside class="session-sidebar liquid-glass">
+                        <div class="sidebar-header">
+                            <div class="search-wrap">
+                                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <input type="text" placeholder="Search sessions...">
+                            </div>
+                        </div>
+                        <div class="session-list" id="redis-session-list">
+                            <div class="session-category">RECENT INVESTIGATIONS</div>
+                            <div class="session-item" data-session-id="Infrastructure_Audit_Target_A">
+                                <span class="item-pip"></span>
+                                <span class="item-label">Infrastructure_Audit_Target_A</span>
+                            </div>
+                            <div class="session-item active" data-session-id="Leak_DB_Recursive_Search">
+                                <span class="item-pip"></span>
+                                <span class="item-label">Leak_DB_Recursive_Search</span>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Multi-Modal Intelligence Canvas -->
+                    <div class="intelligence-canvas liquid-glass">
+                        <div class="canvas-content" id="chat-document-canvas">
+                            <div class="chat-history" id="chat-history-stream">
+                                <!-- AI Responses and User Directives flow here -->
+                                <div class="chat-bubble ai">
+                                    <div class="bubble-meta">M2_COMPILER | 10:42:05</div>
+                                    <div class="bubble-content">
+                                        <p>Intelligence gathering phase complete. Compiled dossier REF: DOC_ARCH_772 is now available for review.</p>
+                                        <!-- In-line Dossier Preview -->
+                                        <div class="document-preview-card">
+                                            <div class="doc-icon"></div>
+                                            <div class="doc-info">
+                                                <span class="doc-name">Universal_Intelligence_Dossier_v3.pdf</span>
+                                                <span class="doc-meta">8.4 MB | 24 PAGES</span>
+                                            </div>
+                                            <button class="tactical-btn sm">OPEN CANVAS</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Anchored Interaction Capsule -->
+                        <div class="interaction-tray">
+                            <div class="terminal-capsule">
+                                <button class="capsule-btn" title="Attach Document">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                                    </svg>
+                                </button>
+                                <button class="capsule-btn" title="Voice Input">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                                    </svg>
+                                </button>
+                                <input type="text" id="target-inquiry-input" class="capsule-input" placeholder="Enter directive or @tag bot...">
+                                <button id="send-inquiry-btn" class="capsule-submit" title="Execute Directive">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pinned Reference Sidebar (Optional) -->
+                    <aside class="pinned-reference liquid-glass" id="pinned-doc-view">
+                        <div class="panel-header">
+                            <span>PINNED_REFERENCE</span>
+                            <button class="icon-btn sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                        </div>
+                        <div class="pinned-content">
+                            <article class="tactical-briefing">
+                                <h3>REF: DOC_ARCH_772</h3>
+                                <p>Source: Recursive Dark Web Scrape</p>
+                                <hr class="glass-hr">
+                                <div class="briefing-section">
+                                    <h4>01. Infrastructure Map</h4>
+                                    <div class="tactical-table-wrap">
+                                        <table class="tactical-table">
+                                            <thead><tr><th>NODE</th><th>VAL</th></tr></thead>
+                                            <tbody>
+                                                <tr><td class="mono">Core Node</td><td class="mono">192.168.100.41</td></tr>
+                                                <tr><td class="mono">Proxy</td><td class="mono">10.0.55.12</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+            </aside>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- [TACTICAL STATUS BAR] -->
+    <footer class="status-bar">
+        <div class="status-cluster">
+            <div class="status-item">
+                <span class="status-label">N8N_ENGINE:</span>
+                <span class="status-value active">ONLINE</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">TOR_GATEWAY:</span>
+                <span class="status-value secure">OBFS4_SECURE</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">GPU_CORE:</span>
+                <span id="footer-temp" class="status-value warning">48°C</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">VRAM_LOAD:</span>
+                <span id="footer-vram" class="status-value critical">85%</span>
+            </div>
+        </div>
+        <div class="status-system">
+            <span class="system-id">TAC_ENGINE_v3.1.2</span>
+            <div class="clock" id="tactical-clock">10:42:05</div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
